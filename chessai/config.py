@@ -27,8 +27,23 @@ for row in CELL_CENTER_POSITIONS:
         )
 
 
-PIECE_DETECTION_MODEL_PATH = "data/my_model_ncnn_model
-PIECE_DETECTION_CLASS_NAMES_PATH = "data/classes.txt"
+PIECE_DETECTION_MODEL_PATH = "data/my_model_ncnn_model"
+PIECE_DETECTION_CLASS_NAMES = [
+    "B_A",
+    "B_C",
+    "B_E",
+    "B_H",
+    "B_K",
+    "B_P",
+    "B_R",
+    "R_A",
+    "R_C",
+    "R_E",
+    "R_H",
+    "R_K",
+    "R_P",
+    "R_R",
+]
 
 DEFAULT_VISUALIZATION_FRAME = cv2.imread(
     "data/default_visualization_frame.jpeg"

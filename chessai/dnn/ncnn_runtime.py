@@ -1,7 +1,11 @@
 # chessai/dnn/ncnn_runtime.py
 from __future__ import annotations
-from typing import Optional, Sequence, Tuple
+
+from pathlib import Path
+
+import ncnn
 import numpy as np
+
 
 class NCNNRuntime:
     def __init__(
@@ -19,12 +23,50 @@ class NCNNRuntime:
 
     def load(self) -> None:
         """Load the NCNN model and prepare the net."""
-        raise NotImplementedError
+        self.close()
+        net = ncnn.Net()
+        net.opt.num_threads = self.num_threads
+        net.opt.use_vulkan_compute = self.use_gpu
+
+        param_path = Path(self.param_path)
+        bin_path = Path(self.bin_path)
+        if not param_path.is_file():
+            raise FileNotFoundError(f"NCNN parameter file not found: {param_path}")
+        if not bin_path.is_file():
+            raise FileNotFoundError(f"NCNN weight file not found: {bin_path}")
+
+        result = net.load_param(str(param_path))
+        if result != 0:
+            net.clear()
+            raise RuntimeError(f"NCNN could not load parameter file: {param_path}")
+
+        result = net.load_model(str(bin_path))
+        if result != 0:
+            net.clear()
+            raise RuntimeError(f"NCNN could not load weight file: {bin_path}")
+
+        self._net = net
 
     def infer(self, image: np.ndarray) -> list:
         """Run inference and return raw NCNN outputs."""
-        raise NotImplementedError
+        if self._net is None:
+            raise RuntimeError("The NCNN model has not been loaded.")
+        if image.dtype != np.float32 or image.ndim != 3:
+            raise ValueError("NCNN input must be a 3D float32 CHW array.")
+
+        input_mat = ncnn.Mat(np.ascontiguousarray(image))
+        extractor = self._net.create_extractor()
+        result = extractor.input("in0", input_mat)
+        if result != 0:
+            raise RuntimeError(f"NCNN could not set model input (code {result}).")
+
+        result, output = extractor.extract("out0")
+        if result != 0:
+            raise RuntimeError(f"NCNN could not extract model output (code {result}).")
+        return [np.asarray(output).copy()]
 
     def close(self) -> None:
         """Release the net."""
-        raise NotImplementedError
+        if self._net is not None:
+            self._net.clear()
+            self._net = None

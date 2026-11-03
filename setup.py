@@ -34,6 +34,7 @@ def get_install_requires():
         "tk==0.1.0",
         "pywebview==4.4.1",
         "opencv-contrib-python==4.7.0.72",
+        "ncnn>=1.0.20240410",
         "imutils==0.5.4",
         "pyserial==3.5",
         "pyinstaller==5.13.2",

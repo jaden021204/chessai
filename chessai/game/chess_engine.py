@@ -1,5 +1,6 @@
 # chessai/game/chess_engine.py
 from __future__ import annotations
+import subprocess
 from chessai.game.pikafish_engine import PikafishEngine
 from chessai.game.game_state import Player
 
