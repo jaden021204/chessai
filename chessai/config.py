@@ -27,8 +27,8 @@ for row in CELL_CENTER_POSITIONS:
         )
 
 
-PIECE_DETECTION_MODEL_PATH = "/home/jaden021204/yolo/my_model_ncnn_model"
-PIECE_DETECTION_CLASS_NAMES_PATH = "/home/jaden021204/yolo/classes.txt"
+PIECE_DETECTION_MODEL_PATH = "data/my_model_ncnn_model
+PIECE_DETECTION_CLASS_NAMES_PATH = "data/classes.txt"
 
 DEFAULT_VISUALIZATION_FRAME = cv2.imread(
     "data/default_visualization_frame.jpeg"
