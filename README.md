@@ -79,3 +79,5 @@ This project uses computer vision and deep learning to detect chess pieces and c
 - Object detection model (for chess pieces) is based on [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) - License: Apache 2.0.
 - Chess engine: [godogpaw](https://github.com/hmgle/godogpaw) - License: MIT.
 - UI components: [shadcn-ui](https://github.com/shadcn-ui/ui) - License: MIT.
+# YOLO26s-RaspPI5-XiangQi
+# YOLO26s-RaspPI5-XiangQi
