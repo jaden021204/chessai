@@ -1,15 +1,11 @@
-import subprocess
-from chessai.game.game_state import GameState, Player
+# chessai/game/chess_engine.py
+from __future__ import annotations
+from chessai.game.pikafish_engine import PikafishEngine
+from chessai.game.game_state import Player
 
-
-class ChessEngine:
-    MAX_RESTART_TIMES = 10
-    def __init__(self, engine_path):
-        self.engine_path = engine_path
-        self._engine_process = self.open_engine(engine_path)
-        self.current_fen = "startpos"
-        self.current_time_limit = 2000
-        self.engine_restart_times = 0
+class ChessEngine(PikafishEngine):
+    def __init__(self, engine_path: str, time_limit_ms: int = 2000, **kwargs):
+        super().__init__(engine_path=engine_path, time_limit_ms=time_limit_ms, **kwargs)
 
     @property
     def engine_process(self):

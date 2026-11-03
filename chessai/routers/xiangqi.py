@@ -82,3 +82,20 @@ async def get_hint():
     return {
         "best_move": best_move,
     }
+
+@router.get("/game_snapshot")
+async def game_snapshot():
+    if global_data.game_state is None:
+        return {
+            "is_playing": False,
+            "next_player": None,
+            "board": None,
+            "best_move": None,
+        }
+
+    return {
+        "is_playing": True,
+        "next_player": global_data.game_state.next_player.name.lower() if hasattr(global_data.game_state.next_player, "name") else None,
+        "board": global_data.board_array.tolist() if global_data.board_array is not None else None,
+        "best_move": getattr(global_data.game_state, "hint_move", None),
+    }

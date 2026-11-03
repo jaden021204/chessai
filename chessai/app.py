@@ -41,13 +41,6 @@ if not engine_path:
     sys.exit(0)
 global_data.chess_engine = ChessEngine(engine_path)
 
-
-def run_window():
-    import webview
-    webview.create_window("ChessAI - Chinese Chess Analyzer", 'http://127.0.0.1:3000', width=1200, height=800)
-    webview.start()
-    os._exit(0)
-
 def chessai_process(frame):
     original_frame_viz = frame.copy()
     _, board_image = aligner.process(frame, visualize=original_frame_viz)
@@ -181,19 +174,6 @@ def main():
 
     # Start the capture loop
     start_camera()
-
-    if args.run_app:
-        # Run the app in a separate thread
-        thread = threading.Thread(target=run_webapp)
-        thread.start()
-        time.sleep(3)
-
-        # Run the window in the main thread
-        run_window()
-    else:
-        run_webapp()
-
-
 
 if __name__ == "__main__":
     main()
