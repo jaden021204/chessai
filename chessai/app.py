@@ -160,12 +160,16 @@ def main():
     def run_webapp():
         uvicorn.run(app, host=args.host, port=args.port, workers=1)
 
+    # Start the web server first so the UI is reachable even without a camera
+    threading.Thread(target=run_webapp, daemon=True).start()
+
     # Scan for available camera ports
     logging.info("Scanning for available camera ports...")
     _, global_data.working_camera_ports = list_camera_ports()
     if len(global_data.working_camera_ports) == 0:
         logging.error("No working camera ports found. Please check your camera.")
-        return
+        while True:  # keep the web server alive
+            time.sleep(3600)
     global_data.camera_id = global_data.working_camera_ports[0]
 
     # Start the chessai process loop
