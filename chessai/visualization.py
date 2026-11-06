@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from chessai.config import CELL_RECTANGLES
+from chessai import config
 
 pieces = [
     "rr",
@@ -20,10 +20,13 @@ pieces = [
     "bp",
 ]
 
-ref_board_image = cv2.imread("data/board.png")
+ref_board_image = cv2.imread(config.REFERENCE_BOARD_IMAGE_PATH)
 ref_piece_images = {}
 for p in pieces:
-    ref_piece_images[p] = cv2.imread(f"data/pieces/{p}.png", cv2.IMREAD_UNCHANGED)
+    image = cv2.imread(f"data/pieces/{p}.png", cv2.IMREAD_UNCHANGED)
+    size = tuple(max(1, int(dimension * config.VISUALIZATION_PIECE_SCALE + 0.5))
+                 for dimension in (image.shape[1], image.shape[0]))
+    ref_piece_images[p] = cv2.resize(image, size, interpolation=cv2.INTER_LINEAR)
 
 
 def overlay(background, overlay, x, y):
@@ -64,20 +67,31 @@ def overlay(background, overlay, x, y):
 
 
 def draw_board_canvas(board, hint_move=None):
-    draw = ref_board_image.copy()
+    piece_height, piece_width = next(iter(ref_piece_images.values())).shape[:2]
+    xs = [x + config.VISUALIZATION_OFFSET_X for x in config.VISUALIZATION_COLUMN_X]
+    ys = [y + config.VISUALIZATION_OFFSET_Y for y in config.VISUALIZATION_ROW_Y]
+    left = max(0, piece_width // 2 - min(xs))
+    top = max(0, piece_height // 2 - min(ys))
+    right = max(0, max(xs) - piece_width // 2 + piece_width - ref_board_image.shape[1])
+    bottom = max(0, max(ys) - piece_height // 2 + piece_height - ref_board_image.shape[0])
+    border_color = tuple(int(value) for value in ref_board_image[-1, ref_board_image.shape[1] // 2])
+    draw = cv2.copyMakeBorder(
+        ref_board_image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=border_color
+    )
     for i in range(10):
         for j in range(9):
-            x = j * 110 + 30
-            y = i * 110 + 30
             if board[i][j]:
-                draw = overlay(draw, ref_piece_images[board[i][j]], x, y)
+                image = ref_piece_images[board[i][j]]
+                x = xs[j] + left - image.shape[1] // 2
+                y = ys[i] + top - image.shape[0] // 2
+                draw = overlay(draw, image, x, y)
 
     if hint_move:
         # Draw a hint move on the board
-        from_x = (ord(hint_move[0]) - ord("a")) * 110 + 60
-        from_y = (9 - int(hint_move[1])) * 110 + 60
-        to_x = (ord(hint_move[2]) - ord("a")) * 110 + 60
-        to_y = (9 - int(hint_move[3])) * 110 + 60
+        from_x = xs[ord(hint_move[0]) - ord("a")] + left
+        from_y = ys[9 - int(hint_move[1])] + top
+        to_x = xs[ord(hint_move[2]) - ord("a")] + left
+        to_y = ys[9 - int(hint_move[3])] + top
         draw = cv2.arrowedLine(
             draw,
             (from_x, from_y),

@@ -4,7 +4,7 @@ import threading
 
 import cv2
 
-from chessai import global_data
+from chessai import config, global_data
 
 
 def capture_loop():
@@ -13,24 +13,34 @@ def capture_loop():
     except Exception as e:
         logging.error(e)
         return
-    global_data.camera_is_running = True
-    while True:
-        if global_data.camera_shutdown_signal:
-            global_data.camera_is_running = False
-            break
-        ret, frame = cap.read()
-        # frame = cv2.flip(frame, 1)
-        # if int(time.time()) % 4 < 2:
-        #     frame = cv2.imread("test_board.png")
-        # else:
-        #     frame = cv2.imread("test_board2.png")
-        if ret is False:
-            global_data.camera_is_running = False
-            break
-        if frame is not None:
+    try:
+        if not cap.isOpened():
+            logging.error("Could not open camera %s", global_data.camera_id)
+            return
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAMERA_WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAMERA_HEIGHT)
+        global_data.camera_is_running = True
+        reported_resolution = False
+        while not global_data.camera_shutdown_signal:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                logging.error("Could not read a frame from camera %s", global_data.camera_id)
+                break
+            if not reported_resolution:
+                height, width = frame.shape[:2]
+                print(
+                    f"Camera resolution: {width}x{height} "
+                    f"(requested {config.CAMERA_WIDTH}x{config.CAMERA_HEIGHT})",
+                    flush=True,
+                )
+                if (width, height) != (config.CAMERA_WIDTH, config.CAMERA_HEIGHT):
+                    logging.warning("Camera did not provide the requested resolution.")
+                reported_resolution = True
             with global_data.frame_lock:
                 global_data.original_frame = frame
-    global_data.camera_is_running = False
+    finally:
+        cap.release()
+        global_data.camera_is_running = False
 
 
 def stop_camera():

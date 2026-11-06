@@ -32,6 +32,7 @@ aligner = BoardAligner(
 piece_detector = PieceDetector(
     model_dir=config.PIECE_DETECTION_MODEL_PATH,
     class_names=config.PIECE_DETECTION_CLASS_NAMES,
+    score_thr=config.PIECE_DETECTION_CONFIDENCE,
 )
 
 DEFAULT_ENGINE_PATH = "data/engines/godogpaw-macos-arm"
