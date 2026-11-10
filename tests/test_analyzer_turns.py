@@ -25,14 +25,14 @@ class AnalyzerTurnsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "No piece moved"):
             game.end_turn(self.engine, board, 4)
         with self.assertRaisesRegex(ValueError, "Illegal move"):
-            game.end_turn(self.engine, apply_move(board, "h7g7"), 4)
-        moved = apply_move(board, "i6i5")
+            game.end_turn(self.engine, apply_move(board, "b2c2"), 4)
+        moved = apply_move(board, "a3a4")
         game.end_turn(self.engine, moved, 4)
         self.assertEqual(game.next_player, "b")
-        self.assertEqual(game.hint_move, "h2e2")
+        self.assertEqual(game.hint_move, "b7e7")
         game.observe(self.engine, moved, now=0)
         self.assertIsNone(game.warning)
-        wrong = apply_move(moved, "h2f2")
+        wrong = apply_move(moved, "b7f7")
         game.observe(self.engine, wrong, now=1)
         game.observe(self.engine, wrong, now=2.9)
         self.assertIsNone(game.warning)
@@ -42,16 +42,16 @@ class AnalyzerTurnsTests(unittest.TestCase):
         self.assertIsNone(game.warning)
         game.observe(self.engine, game.expected, now=5)
         self.assertEqual(game.next_player, "r")
-        self.assertEqual(game.moves, ["i6i5", "h2e2"])
+        self.assertEqual(game.moves, ["a3a4", "b7e7"])
 
     def test_black_player_sees_red_move_first(self):
         game = AnalyzerGame("b", "easy", starting_board_for("b"))
         game.prepare(self.engine, 2)
         self.assertEqual(game.next_player, "r")
-        self.assertEqual(game.hint_move, "b2e2")
+        self.assertEqual(game.hint_move, "h7e7")
         game.observe(self.engine, game.expected)
         self.assertEqual(game.next_player, "b")
-        self.assertEqual(game.moves, ["b2e2"])
+        self.assertEqual(game.moves, ["h7e7"])
 
     def test_no_legal_move_ends_game(self):
         game = AnalyzerGame("r", "easy", starting_board_for("r"))
@@ -60,9 +60,9 @@ class AnalyzerTurnsTests(unittest.TestCase):
         game.prepare(self.engine, 2)
         self.assertEqual(game.winner, "b")
 
-    def test_start_positions_have_player_on_top(self):
-        self.assertEqual(starting_board_for("r")[0, 4], "rk")
-        self.assertEqual(starting_board_for("b")[0, 4], "bk")
+    def test_start_positions_have_opponent_on_top(self):
+        self.assertEqual(starting_board_for("r")[0, 4], "bk")
+        self.assertEqual(starting_board_for("b")[0, 4], "rk")
 
 
 if __name__ == "__main__":

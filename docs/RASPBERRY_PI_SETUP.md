@@ -97,8 +97,13 @@ searches may take longer. Adjust the depth values in `DIFFICULTY_DEPTHS` in
 
 The hint endpoint uses the currently detected board. It sends a XiangQi FEN
 ending in ` w` (red to move) or ` b` (black to move) and displays the returned
-move as an arrow. In Analyzer mode select your side (which must be at the top
-of the detected image); red moves first. If you choose Starting board, set up
+move as an arrow. In Analyzer mode select your side; your opponent's pieces
+must be at the top of the detected image and yours at the bottom. Red moves
+first. ARUCO markers determine the detected orientation: check the displayed
+board and physically orient the board and markers as needed. For black, the
+app rotates the position and move coordinates only when communicating with
+Pikafish; displayed boards and moves remain in the camera's orientation.
+If you choose Starting board, set up
 the physical starting position before starting. On your turn, move one piece
 and press **End Turn**. Follow the arrow for the computer's move; the app waits
 until the camera detects that position. If the wrong position remains for two
@@ -115,6 +120,12 @@ adjudication. Incorrectly detected or invalid positions may be rejected by
 Pikafish; the error is displayed in the web interface. The engine is restarted
 for each analysis and reports a timeout if no answer arrives within 60 seconds.
 Test the turn flow on your Pi before relying on it in a real game.
+If a move unexpectedly produces a warning, compare the displayed board with
+the physical board, including pieces that did not move. Enable **Show debug
+images** and check the detected pieces and markers. A missing, extra, or
+misplaced detection can make one move look like several changes. If this
+persists after the view is clear, record the displayed board, the warning,
+and debug images before restarting so the cause can be investigated.
 
 For API clients, `/api/xiangqi/game_snapshot` returns the detected `board`,
 the last validated `accepted_board`, `player`, `next_player`, `moves`,

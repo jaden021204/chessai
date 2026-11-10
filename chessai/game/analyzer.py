@@ -25,10 +25,10 @@ class AnalyzerGame:
         return canonical_board(board, self.player)
 
     def engine_move(self, move):
-        return flip_move(move) if self.player == "r" else move
+        return flip_move(move) if self.player == "b" else move
 
     def physical_move(self, move):
-        return flip_move(move) if self.player == "r" else move
+        return flip_move(move) if self.player == "b" else move
 
     def legal_moves(self, engine, board, side):
         return engine.legal_moves(self._canonical(board), side)
@@ -102,4 +102,4 @@ class AnalyzerGame:
 
 
 def starting_board_for(player):
-    return np.rot90(START_BOARD, 2).copy() if player == "r" else START_BOARD.copy()
+    return np.rot90(START_BOARD, 2).copy() if player == "b" else START_BOARD.copy()

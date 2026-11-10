@@ -10,8 +10,8 @@ from chessai.game.board_moves import (
 class BoardMovesTests(unittest.TestCase):
     def test_rotation_matches_camera_orientation(self):
         red_at_top = np.rot90(START_BOARD, 2)
-        np.testing.assert_array_equal(canonical_board(red_at_top, "r"), START_BOARD)
-        np.testing.assert_array_equal(canonical_board(START_BOARD, "b"), START_BOARD)
+        np.testing.assert_array_equal(canonical_board(red_at_top, "b"), START_BOARD)
+        np.testing.assert_array_equal(canonical_board(START_BOARD, "r"), START_BOARD)
         np.testing.assert_array_equal(red_at_top, np.rot90(START_BOARD, 2))
 
     def test_every_move_round_trips(self):

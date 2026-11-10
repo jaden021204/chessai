@@ -122,6 +122,10 @@ export default function IndexPage() {
   const warningCooldown = useRef(0)
   const errorCooldown = useRef(0)
   const announcedWinner = useRef<string | null>(null)
+  const moveHistory = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (moveHistory.current) moveHistory.current.scrollTop = 0
+  }, [currentGame.moves?.length])
   useEffect(() => {
     let active = true
     let timer: ReturnType<typeof setTimeout>
@@ -256,7 +260,7 @@ export default function IndexPage() {
             <h2 className="mt-4 text-xl font-semibold leading-none">
               Move History
             </h2>
-            <div className="max-h-[100px] w-full overflow-y-auto">
+            <div ref={moveHistory} className="max-h-[100px] w-full overflow-y-auto">
               <table className="flex flex-col gap-1">
                 <thead className="border-b-2 border-gray-600">
                   <tr className="flex flex-row gap-1 text-left">
@@ -270,7 +274,7 @@ export default function IndexPage() {
                       <td className="w-1/2">{index + 1}</td>
                       <td className="w-1/2">{move}</td>
                     </tr>
-                  ))}
+                  )).reverse()}
                 </tbody>
               </table>
             </div>

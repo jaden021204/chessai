@@ -78,7 +78,7 @@ def current_game():
 def new_game(data: NewGameRequest):
     board = detected_board()
     if data.position == "starting" and not np.array_equal(board, starting_board_for(data.next_player)):
-        raise HTTPException(status_code=422, detail="Set up the physical starting board first, with your pieces at the top.")
+        raise HTTPException(status_code=422, detail="Set up the physical starting board first, with your opponent's pieces at the top of the detected board.")
     game = AnalyzerGame(data.next_player, data.difficulty, board)
     with global_data.game_lock:
         engine_call(game.prepare, global_data.chess_engine, DIFFICULTY_DEPTHS[data.difficulty])

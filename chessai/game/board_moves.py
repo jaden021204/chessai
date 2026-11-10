@@ -23,7 +23,7 @@ PIECE_NAMES = {
 
 
 def canonical_board(board, player):
-    return np.rot90(board, 2).copy() if player == "r" else board.copy()
+    return np.rot90(board, 2).copy() if player == "b" else board.copy()
 
 
 def flip_move(move):

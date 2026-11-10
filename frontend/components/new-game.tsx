@@ -56,7 +56,8 @@ export function NewGame({ children }: { children: React.ReactNode }) {
         <DialogHeader>
           <DialogTitle>New Game</DialogTitle>
           <DialogDescription>
-            Choose a side and starting position. Red always moves first.
+            Choose a side and starting position. Your opponent&apos;s pieces
+            must be at the top of the detected board. Red always moves first.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
