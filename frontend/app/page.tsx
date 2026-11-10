@@ -96,25 +96,26 @@ export default function IndexPage() {
   }, [])
 
   const getHint = async () => {
-    const hint = await fetch("/api/xiangqi/get_hint", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }).then((res) => res.json())
-    if (hint.error) {
+    try {
+      const response = await fetch("/api/xiangqi/get_hint")
+      const hint = await response.json()
+      if (!response.ok) {
+        throw new Error(hint.detail || "Could not get a hint.")
+      }
       toast({
-        title: "Error",
-        description: hint.error,
+        title: "Hint",
+        description: hint.best_move
+          ? `Best move: ${hint.best_move} (depth ${hint.depth})`
+          : "No legal move returned by the engine.",
         duration: 3000,
       })
-      return
+    } catch (error) {
+      toast({
+        title: "Hint unavailable",
+        description: error instanceof Error ? error.message : "Network error",
+        duration: 5000,
+      })
     }
-    toast({
-      title: "Hint",
-      description: `Best move: ${hint.best_move}`,
-      duration: 3000,
-    })
   }
 
   const [currentGame, setCurrentGame] = useState<any>({
@@ -267,6 +268,9 @@ export default function IndexPage() {
           <NewGame>
             <Button className="w-full">New Game</Button>
           </NewGame>
+          {isPlaying && (
+            <div className="text-sm">Analyzer difficulty: {currentGame.difficulty}</div>
+          )}
           <Button className="w-full" onClick={getHint} disabled={!isPlaying}>
             Hint
           </Button>

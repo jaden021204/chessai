@@ -7,9 +7,10 @@ class Player:
     BLACK = "b"
 
 class GameState:
-    def __init__(self, board, next_player=Player.RED):
+    def __init__(self, board, next_player=Player.RED, difficulty="medium"):
         self.board = board
         self.next_player = next_player
+        self.difficulty = difficulty
         self.moves = []
         self.hint_move = None
 
@@ -23,7 +24,7 @@ class GameState:
         return game_engine.check_move(move.from_pos, move.to_pos)
 
     def copy(self):
-        new_state = GameState(deepcopy(self.board), self.next_player)
+        new_state = GameState(deepcopy(self.board), self.next_player, self.difficulty)
         new_state.moves = self.moves.copy()
         new_state.hint_move = self.hint_move
         return new_state

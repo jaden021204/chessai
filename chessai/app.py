@@ -1,5 +1,4 @@
 import os
-import sys
 import argparse
 import logging
 import pathlib
@@ -35,11 +34,7 @@ piece_detector = PieceDetector(
     score_thr=config.PIECE_DETECTION_CONFIDENCE,
 )
 
-DEFAULT_ENGINE_PATH = "data/engines/godogpaw-macos-arm"
-engine_path = os.environ.get("ENGINE_PATH", DEFAULT_ENGINE_PATH)
-if not engine_path:
-    print("ENGINE_PATH environment variable not set")
-    sys.exit(0)
+engine_path = os.environ.get("ENGINE_PATH", "")
 global_data.chess_engine = ChessEngine(engine_path)
 
 def chessai_process(frame):

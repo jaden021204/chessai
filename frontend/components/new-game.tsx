@@ -23,25 +23,29 @@ import { useToast } from "@/registry/default/ui/use-toast"
 export function NewGame({ children }: { children: React.ReactNode }) {
   const { toast } = useToast()
   const [nextPlayer, setNextPlayer] = useState<string>("r")
+  const [difficulty, setDifficulty] = useState<string>("medium")
 
-  const newGame = () => {
-    fetch("/api/xiangqi/new_game", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        next_player: nextPlayer,
-      }),
-    })
-    toast({
-      title: "New Game",
-      description: "New game started.",
-      duration: 3000,
-    })
-    setTimeout(() => {
+  const newGame = async () => {
+    try {
+      const response = await fetch("/api/xiangqi/new_game", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ next_player: nextPlayer, difficulty }),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || "Could not start the game.")
+      }
       window.location.reload()
-    }, 500)
+    } catch (error) {
+      toast({
+        title: "Could not start game",
+        description: error instanceof Error ? error.message : "Network error",
+        duration: 5000,
+      })
+    }
   }
 
   return (
@@ -51,7 +55,7 @@ export function NewGame({ children }: { children: React.ReactNode }) {
         <DialogHeader>
           <DialogTitle>New Game</DialogTitle>
           <DialogDescription>
-            New game from the current board.
+            Analyzer mode: start a game from the current board.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
@@ -72,6 +76,20 @@ export function NewGame({ children }: { children: React.ReactNode }) {
               <SelectItem value={"b"} key={"b"}>
                 Black
               </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5 leading-none">
+          <label htmlFor="difficulty">Difficulty (search depth)</label>
+          <Select value={difficulty} onValueChange={setDifficulty}>
+            <SelectTrigger id="difficulty">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="easy">Easy (2)</SelectItem>
+              <SelectItem value="medium">Medium (4)</SelectItem>
+              <SelectItem value="hard">Hard (6)</SelectItem>
+              <SelectItem value="expert">Expert (8)</SelectItem>
             </SelectContent>
           </Select>
         </div>

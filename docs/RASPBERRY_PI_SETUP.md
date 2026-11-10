@@ -1,6 +1,7 @@
 # Running ChessAI on a Raspberry Pi 5
 
-Tested pieces: `requirements.txt` install, NCNN detector, and web server start were verified on a Linux x86 machine. **Not yet verified on a real Pi, with a real camera, or with Pikafish** (the Pikafish adapter is not implemented yet, so the Hint button will not work).
+The NCNN detector, camera, and board visualization are working on the Pi setup.
+The Pikafish hint integration must be tested with your Pi binary.
 
 You need: Raspberry Pi 5 with 64-bit Raspberry Pi OS (Bookworm), internet, a camera available to OpenCV, and a keyboard/monitor or SSH.
 
@@ -87,10 +88,20 @@ ENGINE_PATH="/full/path/to/your/pikafish" python -m chessai.app --run_app
 ```
 
 Replace the example path with the actual executable path. The path is read in
-`chessai/app.py`; it overrides the old godogpaw default. **This does not make
-hints work yet:** `chessai/game/pikafish_engine.py` is still a stub and
-`chessai/game/chess_engine.py` needs to be reconciled with it. The exact
-binary's protocol and output need to be verified before that integration.
+`chessai/app.py`. Ensure your Pikafish NNUE file is where your binary can find it.
+Select **New Game**, choose the side to analyze and a difficulty, then select
+**Hint**. Analyzer difficulties use `go depth` in Pikafish: Easy 2, Medium 4,
+Hard 6, Expert 8. These are search depths, not measured Elo ratings; deeper
+searches may take longer. Adjust the depth values in `DIFFICULTY_DEPTHS` in
+`chessai/routers/xiangqi.py` and restart the app.
+
+The hint endpoint uses the currently detected board. It sends a XiangQi FEN
+ending in ` w` (red to move) or ` b` (black to move) and displays the returned
+move as an arrow. Incorrectly detected or invalid positions may be rejected by
+Pikafish; the error is displayed in the web interface. The engine is restarted
+for each analysis and reports a timeout if no answer arrives within 60 seconds.
+The existing Play button does not yet validate moves or implement full
+turn-based play. Robot mode is not implemented.
 
 For the displayed board only, `chessai/config.py` contains
 `VISUALIZATION_PIECE_SCALE` (1.5 means 50% larger than the original images),
