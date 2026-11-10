@@ -48,6 +48,19 @@ class VisualizationTests(unittest.TestCase):
         self.assertEqual(end[0] - start[0], config.VISUALIZATION_COLUMN_X[-1] - config.VISUALIZATION_COLUMN_X[0])
         self.assertEqual(end[1] - start[1], config.VISUALIZATION_ROW_Y[-1] - config.VISUALIZATION_ROW_Y[0])
 
+    def test_rotate_piece_without_changing_position(self):
+        board = np.full((10, 9), "", dtype=object)
+        board[0, 0] = "bp"
+        with patch.object(visualization, "overlay", wraps=visualization.overlay) as overlay:
+            visualization.draw_board_canvas(board, rotate_pieces=True)
+        np.testing.assert_array_equal(
+            overlay.call_args.args[1], np.rot90(visualization.ref_piece_images["bp"], 2)
+        )
+        x, y = overlay.call_args.args[2:4]
+        with patch.object(visualization, "overlay", wraps=visualization.overlay) as overlay:
+            visualization.draw_board_canvas(board)
+        self.assertEqual((x, y), overlay.call_args.args[2:4])
+
 
 if __name__ == "__main__":
     unittest.main()

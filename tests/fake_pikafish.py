@@ -19,5 +19,12 @@ for line in sys.stdin:
         if os.environ.get("FAKE_ENGINE_TIMEOUT"):
             time.sleep(2)
         print("bestmove b2e2 ponder b9c7", flush=True)
+    elif command == "go perft 1":
+        if os.environ.get("FAKE_PERFT_EMPTY"):
+            print("Nodes searched: 0", flush=True)
+        else:
+            print("a3a4: 1", flush=True)
+            print("b2e2: 1", flush=True)
+            print("Nodes searched: " + ("3" if os.environ.get("FAKE_PERFT_BAD") else "2"), flush=True)
     elif command == "quit":
         break

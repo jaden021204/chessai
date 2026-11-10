@@ -97,11 +97,30 @@ searches may take longer. Adjust the depth values in `DIFFICULTY_DEPTHS` in
 
 The hint endpoint uses the currently detected board. It sends a XiangQi FEN
 ending in ` w` (red to move) or ` b` (black to move) and displays the returned
-move as an arrow. Incorrectly detected or invalid positions may be rejected by
+move as an arrow. In Analyzer mode select your side (which must be at the top
+of the detected image); red moves first. If you choose Starting board, set up
+the physical starting position before starting. On your turn, move one piece
+and press **End Turn**. Follow the arrow for the computer's move; the app waits
+until the camera detects that position. If the wrong position remains for two
+seconds, it warns you, and warns again five seconds after dismissal if needed.
+Robot mode is displayed but unavailable.
+
+Before calling Pikafish, the app checks piece counts, king/advisor/elephant
+locations, pawn locations, and whether the kings face each other. These checks
+do not establish that an arbitrary current board is reachable from a real game.
+The app validates moves with `go perft 1` from Pikafish. A side with no legal
+moves loses (checkmate or stalemate), but the app does not distinguish the two
+or implement repetition, perpetual check/chase, or other history-dependent
+adjudication. Incorrectly detected or invalid positions may be rejected by
 Pikafish; the error is displayed in the web interface. The engine is restarted
 for each analysis and reports a timeout if no answer arrives within 60 seconds.
-The existing Play button does not yet validate moves or implement full
-turn-based play. Robot mode is not implemented.
+Test the turn flow on your Pi before relying on it in a real game.
+
+For API clients, `/api/xiangqi/game_snapshot` returns the detected `board`,
+the last validated `accepted_board`, `player`, `next_player`, `moves`,
+`best_move`, `waiting_for_computer_move`, `warning`, and `winner`. Moves and
+boards are in the camera/display orientation. The engine-only rotation is
+not applied to these API values.
 
 For the displayed board only, `chessai/config.py` contains
 `VISUALIZATION_PIECE_SCALE` (1.5 means 50% larger than the original images),

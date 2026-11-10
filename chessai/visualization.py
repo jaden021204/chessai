@@ -22,11 +22,13 @@ pieces = [
 
 ref_board_image = cv2.imread(config.REFERENCE_BOARD_IMAGE_PATH)
 ref_piece_images = {}
+rotated_piece_images = {}
 for p in pieces:
     image = cv2.imread(f"data/pieces/{p}.png", cv2.IMREAD_UNCHANGED)
     size = tuple(max(1, int(dimension * config.VISUALIZATION_PIECE_SCALE + 0.5))
                  for dimension in (image.shape[1], image.shape[0]))
     ref_piece_images[p] = cv2.resize(image, size, interpolation=cv2.INTER_LINEAR)
+    rotated_piece_images[p] = cv2.rotate(ref_piece_images[p], cv2.ROTATE_180)
 
 
 def overlay(background, overlay, x, y):
@@ -66,7 +68,7 @@ def overlay(background, overlay, x, y):
     return background
 
 
-def draw_board_canvas(board, hint_move=None):
+def draw_board_canvas(board, hint_move=None, rotate_pieces=False):
     piece_height, piece_width = next(iter(ref_piece_images.values())).shape[:2]
     xs = [x + config.VISUALIZATION_OFFSET_X for x in config.VISUALIZATION_COLUMN_X]
     ys = [y + config.VISUALIZATION_OFFSET_Y for y in config.VISUALIZATION_ROW_Y]
@@ -81,7 +83,8 @@ def draw_board_canvas(board, hint_move=None):
     for i in range(10):
         for j in range(9):
             if board[i][j]:
-                image = ref_piece_images[board[i][j]]
+                images = rotated_piece_images if rotate_pieces else ref_piece_images
+                image = images[board[i][j]]
                 x = xs[j] + left - image.shape[1] // 2
                 y = ys[i] + top - image.shape[0] // 2
                 draw = overlay(draw, image, x, y)

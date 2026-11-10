@@ -118,47 +118,61 @@ export default function IndexPage() {
     }
   }
 
-  const [currentGame, setCurrentGame] = useState<any>({
-    is_playing: false,
-    next_player: "r",
-  })
+  const [currentGame, setCurrentGame] = useState<any>({ is_playing: false })
+  const warningCooldown = useRef(0)
+  const errorCooldown = useRef(0)
+  const announcedWinner = useRef<string | null>(null)
   useEffect(() => {
-    fetch("/api/xiangqi/current_game", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => res.json())
-      .then(setCurrentGame)
-  }, [])
-  const isRedTurn = currentGame.is_playing && currentGame.next_player === "r"
-  const isBlackTurn =
-    currentGame.is_playing && currentGame.next_player === "b"
+    let active = true
+    let timer: ReturnType<typeof setTimeout>
+    const refresh = async () => {
+      try {
+        const response = await fetch("/api/xiangqi/game_snapshot")
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.detail || "Could not read the game.")
+        if (!active) return
+        setCurrentGame(data)
+        if (data.warning && Date.now() >= warningCooldown.current) {
+          window.alert(data.warning)
+          warningCooldown.current = Date.now() + 5000
+        }
+        if (data.winner && announcedWinner.current !== data.winner) {
+          announcedWinner.current = data.winner
+          window.alert(data.winner === data.player
+            ? "You win: COM has no legal moves (checkmate or stalemate)."
+            : "COM wins: you have no legal moves (checkmate or stalemate).")
+        }
+      } catch (error) {
+        if (active && Date.now() >= errorCooldown.current) {
+          errorCooldown.current = Date.now() + 5000
+          toast({
+          title: "Game update failed",
+          description: error instanceof Error ? error.message : "Network error",
+          duration: 3000,
+          })
+        }
+      } finally {
+        if (active) timer = setTimeout(refresh, 1000)
+      }
+    }
+    refresh()
+    return () => { active = false; clearTimeout(timer) }
+  }, [toast])
   const isPlaying = currentGame.is_playing
+  const isYourTurn = isPlaying && currentGame.next_player === currentGame.player
 
   const play = async () => {
-    const res = await fetch("/api/xiangqi/play", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }).then((res) => res.json())
-    if (res.error) {
+    try {
+      const response = await fetch("/api/xiangqi/play", { method: "POST" })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || "Could not end the turn.")
+      setCurrentGame(data)
+    } catch (error) {
       toast({
-        title: "Error",
-        description: res.error,
-        duration: 3000,
+        title: "Turn not ended",
+        description: error instanceof Error ? error.message : "Network error",
+        duration: 5000,
       })
-      return
-    }
-    if (!res.success) {
-      toast({
-        title: "Error",
-        description: res.message || "Unknown error",
-        duration: 3000,
-      })
-      return
     }
   }
 
@@ -205,6 +219,11 @@ export default function IndexPage() {
           </div>
         </div>
         <div className="flex flex-col gap-2">
+          {isPlaying && (
+            <div className="text-center text-xl font-bold" aria-live="polite">
+              YOU {isYourTurn && !currentGame.winner ? "●" : ""} | COM {(!isYourTurn && !currentGame.winner) ? "●" : ""}
+            </div>
+          )}
           <img
             ref={visualizationImage}
             src="/api/vision/visualization_frame"
@@ -213,65 +232,16 @@ export default function IndexPage() {
             height={500}
             alt="Viz Image"
           />
+          <NewGame><Button className="w-full">New Game</Button></NewGame>
+          <Button className="w-full" onClick={play} disabled={!isYourTurn || !!currentGame.winner}>
+            End Turn
+          </Button>
         </div>
         <div className="flex w-[250px] flex-col gap-2">
-          <div className="flex flex-row gap-2">
-            <div className="flex flex-col gap-1">
-              <div className={"text-xl flex" + (isRedTurn ? " font-bold" : "")}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.5"
-                  stroke="currentColor"
-                  className="mr-1 h-6 w-6"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                  />
-                </svg>
-                Red &nbsp;
-                {isRedTurn && <LoadingIcon />}
-              </div>
-              <div className="text-xl">-------------</div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div
-                className={"text-xl flex" + (isBlackTurn ? " font-bold" : "")}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="ml-1 h-6 w-6"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Black &nbsp;
-                {isBlackTurn && <LoadingIcon />}
-              </div>
-              <div className="text-xl">-------------</div>
-            </div>
-          </div>
-          <Button className="h-20 w-full bg-blue-600 hover:bg-blue-500 dark:text-white"
-            onClick={play}
-            disabled={!isPlaying}
-          >
-            Play (Space)
-          </Button>
-          <NewGame>
-            <Button className="w-full">New Game</Button>
-          </NewGame>
           {isPlaying && (
             <div className="text-sm">Analyzer difficulty: {currentGame.difficulty}</div>
           )}
-          <Button className="w-full" onClick={getHint} disabled={!isPlaying}>
+          <Button className="w-full" onClick={getHint} disabled={!isYourTurn || !!currentGame.winner}>
             Hint
           </Button>
           {/* <Button className="w-full" disabled={!isPlaying}>
@@ -282,7 +252,7 @@ export default function IndexPage() {
               Click <b>New Game</b> to start a new game from current position.
             </div>
           )}
-          <div className={"hidden flex-col gap-2" + (isPlaying ? "" : " hidden")}>
+          {isPlaying && <div className="flex flex-col gap-2">
             <h2 className="mt-4 text-xl font-semibold leading-none">
               Move History
             </h2>
@@ -295,18 +265,16 @@ export default function IndexPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="flex flex-row gap-1">
-                    <td className="w-1/2">1</td>
-                    <td className="w-1/2">e2e4</td>
-                  </tr>
-                  <tr className="flex flex-row gap-1">
-                    <td className="w-1/2">2</td>
-                    <td className="w-1/2">e7e5</td>
-                  </tr>
+                  {currentGame.moves?.map((move: string, index: number) => (
+                    <tr className="flex flex-row gap-1" key={index}>
+                      <td className="w-1/2">{index + 1}</td>
+                      <td className="w-1/2">{move}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          </div>}
         </div>
       </section>
       <section className="container mt-4 grid items-center gap-2 py-2">

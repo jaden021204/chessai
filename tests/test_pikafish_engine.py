@@ -66,6 +66,48 @@ class PikafishTests(unittest.TestCase):
             self.engine.get_best_move([[""] * 9 for _ in range(10)], "r")
         self.assertFalse(os.path.exists(self.log))
 
+    def test_illegal_piece_positions_are_rejected_before_launch(self):
+        cases = [
+            ("bk", (0, 4), (3, 4), "black king"),
+            ("ra", (9, 3), (8, 3), "red advisor"),
+            ("bb", (0, 2), (5, 2), "black elephant"),
+            ("rp", (6, 0), (7, 0), "red pawn"),
+            ("bp", (3, 0), (4, 1), "black pawn"),
+        ]
+        for piece, origin, target, message in cases:
+            with self.subTest(piece=piece, target=target):
+                board = [row.copy() for row in START_BOARD]
+                board[origin[0]][origin[1]] = ""
+                board[target[0]][target[1]] = piece
+                with self.assertRaisesRegex(ValueError, message):
+                    self.engine.get_best_move(board, "r")
+        self.assertFalse(os.path.exists(self.log))
+
+    def test_multiple_illegal_positions_and_facing_kings(self):
+        board = [row.copy() for row in START_BOARD]
+        board[0][3], board[1][3] = "", "ba"
+        board[9][3], board[8][3] = "", "ra"
+        with self.assertRaisesRegex(ValueError, "MULTIPLE PIECES"):
+            self.engine.board_array_to_fen(board, "r")
+
+        board = [[""] * 9 for _ in range(10)]
+        board[0][4], board[9][4] = "bk", "rk"
+        with self.assertRaisesRegex(ValueError, "kings cannot face"):
+            self.engine.board_array_to_fen(board, "r")
+
+    def test_legal_moves_are_read_from_perft(self):
+        self.assertEqual(self.engine.legal_moves(START_BOARD, "r"), {"a3a4", "b2e2"})
+        self.assertIn("position fen " + FEN + " w", self.commands())
+        self.assertIn("go perft 1", self.commands())
+        self.assertFalse(self.engine.is_healthy())
+
+    def test_empty_and_incomplete_perft_results(self):
+        with patch.dict(os.environ, {"FAKE_PERFT_EMPTY": "1"}):
+            self.assertEqual(self.engine.legal_moves(START_BOARD, "b"), set())
+        with patch.dict(os.environ, {"FAKE_PERFT_BAD": "1"}):
+            with self.assertRaisesRegex(EngineError, "incomplete"):
+                self.engine.legal_moves(START_BOARD, "b")
+
 
 if __name__ == "__main__":
     unittest.main()

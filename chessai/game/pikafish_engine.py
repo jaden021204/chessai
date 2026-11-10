@@ -152,6 +152,41 @@ class PikafishEngine(EngineBase):
                 count = counts.get(color + piece, 0)
                 if count > maximum or (piece == "k" and count != 1):
                     raise ValueError(f"Invalid number of {color + piece} pieces: {count}.")
+        invalid = []
+        kings = {}
+        advisor_squares = {(0, 3), (0, 5), (1, 4), (2, 3), (2, 5)}
+        elephant_squares = {(0, 2), (0, 6), (2, 0), (2, 4), (2, 8), (4, 2), (4, 6)}
+        names = {"k": "king", "a": "advisor", "b": "elephant", "p": "pawn"}
+        for row_index, row in enumerate(board_array):
+            for col_index, square in enumerate(row):
+                if not square:
+                    continue
+                color, piece = square
+                # Normalize red's half to the same orientation as black's.
+                r = row_index if color == "b" else 9 - row_index
+                c = col_index if color == "b" else 8 - col_index
+                if piece == "k":
+                    kings[color] = (row_index, col_index)
+                    wrong = r > 2 or not 3 <= c <= 5
+                elif piece == "a":
+                    wrong = (r, c) not in advisor_squares
+                elif piece == "b":
+                    wrong = (r, c) not in elephant_squares
+                elif piece == "p":
+                    wrong = r < 3 or (r <= 4 and c % 2 != 0)
+                else:
+                    wrong = False
+                if wrong:
+                    invalid.append(f"{'red' if color == 'r' else 'black'} {names[piece]}")
+        if len(invalid) > 1:
+            raise ValueError("MULTIPLE PIECES IN WRONG LOCATIONS: " + ", ".join(invalid) + ".")
+        if invalid:
+            raise ValueError(f"The {invalid[0]} is in an illegal position.")
+        black_king, red_king = kings["b"], kings["r"]
+        if black_king[1] == red_king[1] and not any(
+            board_array[row][black_king[1]] for row in range(black_king[0] + 1, red_king[0])
+        ):
+            raise ValueError("The kings cannot face each other without a piece between them.")
         return "/".join(rows) + (" w" if next_player == Player.RED else " b")
 
     def set_position(self, board_array, next_player: str) -> str:
@@ -193,6 +228,43 @@ class PikafishEngine(EngineBase):
 
     def get_move(self, game_state, *, depth: int = 4) -> Optional[str]:
         return self.get_best_move(game_state.board, game_state.next_player, depth=depth)
+
+    def legal_moves(self, board_array, next_player: str):
+        fen = self.board_array_to_fen(board_array, next_player)
+        with self._lock:
+            try:
+                self.start()
+                self._write(f"position fen {fen}")
+                self._write("isready")
+                self._wait_for("readyok", self.startup_timeout)
+                self._write("go perft 1")
+                deadline = time.monotonic() + self.search_timeout
+                moves = set()
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise EngineError("Pikafish timed out listing legal moves.")
+                    try:
+                        line = self._lines.get(timeout=remaining)
+                    except queue.Empty as exc:
+                        raise EngineError("Pikafish timed out listing legal moves.") from exc
+                    if line is None:
+                        raise EngineError("Pikafish exited while listing legal moves.")
+                    if "CRITICAL ERROR" in line.upper():
+                        raise EngineError(f"Pikafish rejected the position: {line}")
+                    match = re.fullmatch(r"([a-i][0-9][a-i][0-9]):\s*(\d+)", line)
+                    if match:
+                        moves.add(match.group(1))
+                    elif line.startswith("Nodes searched:"):
+                        try:
+                            count = int(line.partition(":")[2].strip())
+                        except ValueError as exc:
+                            raise EngineError(f"Invalid Pikafish perft result: {line}") from exc
+                        if count != len(moves):
+                            raise EngineError("Pikafish returned an incomplete legal move list.")
+                        return moves
+            finally:
+                self.stop()
 
     def is_healthy(self) -> bool:
         return self._process is not None and self._process.poll() is None

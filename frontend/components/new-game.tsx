@@ -24,6 +24,7 @@ export function NewGame({ children }: { children: React.ReactNode }) {
   const { toast } = useToast()
   const [nextPlayer, setNextPlayer] = useState<string>("r")
   const [difficulty, setDifficulty] = useState<string>("medium")
+  const [position, setPosition] = useState<string>("current")
 
   const newGame = async () => {
     try {
@@ -32,7 +33,7 @@ export function NewGame({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ next_player: nextPlayer, difficulty }),
+        body: JSON.stringify({ next_player: nextPlayer, difficulty, position, mode: "analyzer" }),
       })
       if (!response.ok) {
         const error = await response.json()
@@ -55,11 +56,11 @@ export function NewGame({ children }: { children: React.ReactNode }) {
         <DialogHeader>
           <DialogTitle>New Game</DialogTitle>
           <DialogDescription>
-            Analyzer mode: start a game from the current board.
+            Choose a side and starting position. Red always moves first.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
-          <label htmlFor="next_player">Next Player</label>
+          <label htmlFor="next_player">Your side</label>
           <Select
             onValueChange={(value) => setNextPlayer(value)}
             value={nextPlayer}
@@ -76,6 +77,26 @@ export function NewGame({ children }: { children: React.ReactNode }) {
               <SelectItem value={"b"} key={"b"}>
                 Black
               </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5 leading-none">
+          <label htmlFor="mode">Mode</label>
+          <Select value="analyzer">
+            <SelectTrigger id="mode"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="analyzer">Analyzer</SelectItem>
+              <SelectItem value="robot" disabled>vs ROBOT (not available yet)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5 leading-none">
+          <label htmlFor="position">Starting position</label>
+          <Select value={position} onValueChange={setPosition}>
+            <SelectTrigger id="position"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="current">Current board</SelectItem>
+              <SelectItem value="starting">Starting board</SelectItem>
             </SelectContent>
           </Select>
         </div>
