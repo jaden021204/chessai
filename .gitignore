@@ -10,3 +10,8 @@ frontend/.next
 frontend/out
 chessai/frontend-dist
 *.egg-info
+android_app/.dart_tool/
+android_app/.flutter-plugins*
+android_app/build/
+android_app/android/
+android_app/assets/

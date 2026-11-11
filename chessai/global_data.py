@@ -11,6 +11,8 @@ camera_shutdown_signal = False
 frame_lock = Lock()
 original_frame = None
 debug_frame = None
+debug_aligned_frame = None
+debug_markers_frame = None
 visualization_frame = None
 
 board_lock = Lock()

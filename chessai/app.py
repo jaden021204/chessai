@@ -52,6 +52,8 @@ def chessai_process(frame):
     top_row = cv2.hconcat([board_image_viz, original_frame_viz])
     with global_data.frame_lock:
         global_data.debug_frame = top_row
+        global_data.debug_aligned_frame = board_image_viz
+        global_data.debug_markers_frame = original_frame_viz
 
     # Visualize the board
     game = global_data.game_state

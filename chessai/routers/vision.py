@@ -18,6 +18,31 @@ router = APIRouter(
 async def original_frame():
     return StreamingResponse(original_frame_stream(), media_type="multipart/x-mixed-replace;boundary=frame")
 
+
+def jpeg_snapshot(frame_name):
+    with global_data.frame_lock:
+        frame = getattr(global_data, frame_name)
+        if frame is None:
+            frame = DEFAULT_VISUALIZATION_FRAME
+        return Response(content=encode_image(frame), media_type="image/jpeg",
+                        headers={"Cache-Control": "no-store"})
+
+
+@router.get("/original_snapshot", response_class=Response)
+async def original_snapshot():
+    return jpeg_snapshot("original_frame")
+
+
+@router.get("/debug_aligned_frame", response_class=Response)
+async def debug_aligned_frame():
+    return jpeg_snapshot("debug_aligned_frame")
+
+
+@router.get("/debug_markers_frame", response_class=Response)
+async def debug_markers_frame():
+    return jpeg_snapshot("debug_markers_frame")
+
+
 @router.get("/debug_frame", response_class=Response)
 async def debug_frame():
     with global_data.frame_lock:
@@ -45,4 +70,3 @@ async def visualization_frame():
             content=encoded_frame,
             media_type="image/jpg",
         )
-
