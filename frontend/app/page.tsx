@@ -21,6 +21,12 @@ const DotBgStyle = {
   minHeight: "calc(100vh - 5rem)",
 }
 
+function formatClock(seconds: unknown) {
+  if (typeof seconds !== "number") return "--:--"
+  const total = Math.max(0, Math.ceil(seconds))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`
+}
+
 function LoadingIcon() {
   return (
     <div role="status inline-block">
@@ -119,7 +125,6 @@ export default function IndexPage() {
   }
 
   const [currentGame, setCurrentGame] = useState<any>({ is_playing: false })
-  const warningCooldown = useRef(0)
   const errorCooldown = useRef(0)
   const announcedWinner = useRef<string | null>(null)
   const moveHistory = useRef<HTMLDivElement>(null)
@@ -136,15 +141,13 @@ export default function IndexPage() {
         if (!response.ok) throw new Error(data.detail || "Could not read the game.")
         if (!active) return
         setCurrentGame(data)
-        if (data.warning && Date.now() >= warningCooldown.current) {
-          window.alert(data.warning)
-          warningCooldown.current = Date.now() + 5000
-        }
         if (data.winner && announcedWinner.current !== data.winner) {
           announcedWinner.current = data.winner
-          window.alert(data.winner === data.player
-            ? "You win: COM has no legal moves (checkmate or stalemate)."
-            : "COM wins: you have no legal moves (checkmate or stalemate).")
+          window.alert(data.finish_reason === "timeout"
+            ? (data.winner === data.player ? "You win: COM ran out of time." : "COM wins: you ran out of time.")
+            : (data.winner === data.player
+              ? "You win: COM has no legal moves (checkmate or stalemate)."
+              : "COM wins: you have no legal moves (checkmate or stalemate)."))
         }
       } catch (error) {
         if (active && Date.now() >= errorCooldown.current) {
@@ -180,8 +183,33 @@ export default function IndexPage() {
     }
   }
 
+  const dismissWarning = async () => {
+    try {
+      const response = await fetch("/api/xiangqi/dismiss_warning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ warning_id: currentGame.warning_id }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.detail || "Could not dismiss warning.")
+      setCurrentGame(data)
+    } catch (error) {
+      toast({
+        title: "Warning not dismissed",
+        description: error instanceof Error ? error.message : "Network error",
+        duration: 5000,
+      })
+    }
+  }
+
   return (
     <div style={DotBgStyle} className="pt-6">
+      {currentGame.warning && (
+        <div role="alert" className="container mb-4 rounded-md border border-red-500 bg-white p-3 text-black">
+          <span>{currentGame.warning}</span>{" "}
+          <Button onClick={dismissWarning}>Dismiss</Button>
+        </div>
+      )}
       <section className="container flex flex-row gap-8 py-2">
         <div className="flex w-[250px] flex-col gap-4">
           <h2 className="text-xl font-semibold leading-none">Board Camera</h2>
@@ -225,7 +253,7 @@ export default function IndexPage() {
         <div className="flex flex-col gap-2">
           {isPlaying && (
             <div className="text-center text-xl font-bold" aria-live="polite">
-              YOU {isYourTurn && !currentGame.winner ? "●" : ""} | COM {(!isYourTurn && !currentGame.winner) ? "●" : ""}
+              YOU {formatClock(currentGame.clock?.remaining?.[currentGame.player])} {isYourTurn && !currentGame.winner ? "●" : ""} | COM {formatClock(currentGame.clock?.remaining?.[currentGame.player === "r" ? "b" : "r"])} {(!isYourTurn && !currentGame.winner) ? "●" : ""}
             </div>
           )}
           <img
@@ -237,7 +265,7 @@ export default function IndexPage() {
             alt="Viz Image"
           />
           <NewGame><Button className="w-full">New Game</Button></NewGame>
-          <Button className="w-full" onClick={play} disabled={!isYourTurn || !!currentGame.winner}>
+          <Button className="w-full" onClick={play} disabled={!isYourTurn || !!currentGame.winner || !!currentGame.busy}>
             End Turn
           </Button>
         </div>
@@ -245,7 +273,7 @@ export default function IndexPage() {
           {isPlaying && (
             <div className="text-sm">Analyzer difficulty: {currentGame.difficulty}</div>
           )}
-          <Button className="w-full" onClick={getHint} disabled={!isYourTurn || !!currentGame.winner}>
+          <Button className="w-full" onClick={getHint} disabled={!isYourTurn || !!currentGame.winner || !!currentGame.busy}>
             Hint
           </Button>
           {/* <Button className="w-full" disabled={!isPlaying}>

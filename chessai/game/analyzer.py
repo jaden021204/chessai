@@ -1,14 +1,16 @@
 import time
+import uuid
 
 import numpy as np
 
 from chessai.game.board_moves import (
     PIECE_NAMES, START_BOARD, apply_move, canonical_board, coords, find_move, flip_move,
 )
+from chessai.game.clock import GameClock
 
 
 class AnalyzerGame:
-    def __init__(self, player, difficulty, board):
+    def __init__(self, player, difficulty, board, time_control=None):
         self.player = player
         self.difficulty = difficulty
         self.board = board.copy()
@@ -17,9 +19,45 @@ class AnalyzerGame:
         self.hint_move = None
         self.expected = None
         self.warning = None
+        self.warning_id = None
+        self._warning_after = 0
         self.winner = None
+        self.finish_reason = None
+        self.clock = GameClock(time_control) if time_control else None
         self._wrong_board = None
         self._wrong_since = None
+
+    def start_clock(self):
+        if self.clock and not self.winner:
+            self.clock.start(self.next_player)
+
+    def tick_clock(self):
+        if self.clock and not self.winner:
+            expired = self.clock.tick()
+            if expired:
+                self.winner = "b" if expired == "r" else "r"
+                self.finish_reason = "timeout"
+                self.expected = None
+                self.hint_move = None
+                self.warning = None
+                self.warning_id = None
+
+    def inherit_clock_after_move(self, previous):
+        self.clock = previous.clock
+        if self.clock:
+            expired = self.clock.complete_move()
+            if expired:
+                previous.tick_clock()
+                previous.winner = "b" if expired == "r" else "r"
+                previous.finish_reason = "timeout"
+                previous.expected = None
+                previous.hint_move = None
+                previous.warning = None
+                previous.warning_id = None
+                return False
+            if self.winner:
+                self.clock.stop()
+        return True
 
     def _canonical(self, board):
         return canonical_board(board, self.player)
@@ -82,6 +120,7 @@ class AnalyzerGame:
             self.expected = None
             self.hint_move = None
             self.warning = None
+            self.warning_id = None
             self._wrong_board = None
             self._wrong_since = None
             if not legal:
@@ -90,15 +129,26 @@ class AnalyzerGame:
             self._wrong_board = None
             self._wrong_since = None
             self.warning = None
+            self.warning_id = None
         else:
             now = time.monotonic() if now is None else now
             if self._wrong_board is None or not np.array_equal(self._wrong_board, detected):
                 self._wrong_board = detected.copy()
                 self._wrong_since = now
                 self.warning = None
-            elif now - self._wrong_since >= 2:
+                self.warning_id = None
+            elif now - self._wrong_since >= 2 and now >= self._warning_after and self.warning is None:
                 origin, _ = coords(self.hint_move)
                 self.warning = f"Please place the {PIECE_NAMES[self.board[origin][1]]} at the correct location."
+                self.warning_id = uuid.uuid4().hex
+
+    def dismiss_warning(self, warning_id, now=None):
+        if self.warning_id != warning_id or self.warning is None:
+            return False
+        self.warning = None
+        self.warning_id = None
+        self._warning_after = (time.monotonic() if now is None else now) + 5
+        return True
 
 
 def starting_board_for(player):

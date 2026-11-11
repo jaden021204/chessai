@@ -25,6 +25,7 @@ export function NewGame({ children }: { children: React.ReactNode }) {
   const [nextPlayer, setNextPlayer] = useState<string>("r")
   const [difficulty, setDifficulty] = useState<string>("medium")
   const [position, setPosition] = useState<string>("current")
+  const [timeControl, setTimeControl] = useState<string>("5")
 
   const newGame = async () => {
     try {
@@ -33,7 +34,7 @@ export function NewGame({ children }: { children: React.ReactNode }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ next_player: nextPlayer, difficulty, position, mode: "analyzer" }),
+        body: JSON.stringify({ next_player: nextPlayer, difficulty, position, time_control: timeControl, mode: "analyzer" }),
       })
       if (!response.ok) {
         const error = await response.json()
@@ -112,6 +113,18 @@ export function NewGame({ children }: { children: React.ReactNode }) {
               <SelectItem value="medium">Medium (4)</SelectItem>
               <SelectItem value="hard">Hard (6)</SelectItem>
               <SelectItem value="expert">Expert (8)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5 leading-none">
+          <label htmlFor="time_control">Timer</label>
+          <Select value={timeControl} onValueChange={setTimeControl}>
+            <SelectTrigger id="time_control"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5 minutes</SelectItem>
+              <SelectItem value="5+5">5 minutes + 5 seconds</SelectItem>
+              <SelectItem value="10">10 minutes</SelectItem>
+              <SelectItem value="10+5">10 minutes + 5 seconds</SelectItem>
             </SelectContent>
           </Select>
         </div>

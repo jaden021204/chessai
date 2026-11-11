@@ -53,6 +53,28 @@ class AnalyzerTurnsTests(unittest.TestCase):
         self.assertEqual(game.next_player, "b")
         self.assertEqual(game.moves, ["h7e7"])
 
+    def test_warning_dismissal_is_shared_and_repeats_after_five_seconds(self):
+        board = starting_board_for("r")
+        game = AnalyzerGame("r", "medium", board)
+        game.prepare(self.engine, 4)
+        moved = apply_move(board, "a3a4")
+        game.end_turn(self.engine, moved, 4)
+        wrong = apply_move(moved, "b7f7")
+        game.observe(self.engine, wrong, now=10)
+        game.observe(self.engine, wrong, now=12)
+        warning_id = game.warning_id
+        self.assertIsNotNone(warning_id)
+        self.assertFalse(game.dismiss_warning("stale-id", now=13))
+        self.assertEqual(game.warning_id, warning_id)
+        self.assertTrue(game.dismiss_warning(warning_id, now=13))
+        game.observe(self.engine, wrong, now=17.9)
+        self.assertIsNone(game.warning)
+        game.observe(self.engine, wrong, now=18)
+        self.assertIsNotNone(game.warning)
+        self.assertNotEqual(game.warning_id, warning_id)
+        self.assertFalse(game.dismiss_warning(warning_id, now=19))
+        self.assertIsNotNone(game.warning)
+
     def test_no_legal_move_ends_game(self):
         game = AnalyzerGame("r", "easy", starting_board_for("r"))
         self.engine.legal_moves.side_effect = None

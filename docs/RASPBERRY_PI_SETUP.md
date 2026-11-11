@@ -108,7 +108,19 @@ the physical starting position before starting. On your turn, move one piece
 and press **End Turn**. Follow the arrow for the computer's move; the app waits
 until the camera detects that position. If the wrong position remains for two
 seconds, it warns you, and warns again five seconds after dismissal if needed.
+Dismissal is shared between the web and Android clients, which refresh from
+the Pi; a warning dismissed on one screen disappears from the other on its
+next update.
 Robot mode is displayed but unavailable.
+
+New games can use 5 or 10 minutes per side, with or without a 5-second
+increment. Red's clock starts once the new game is ready. The active side's
+clock continues while a move is validated and until the turn is accepted;
+COM's clock then runs while you physically place its suggested move. A side
+that runs out of time loses. Clocks run on the Pi even if the phone or browser
+disconnects; stopping or restarting ChessAI loses the current game and clocks.
+The screen refreshes about once per second, so it may show the result shortly
+after the Pi's timer expires.
 
 Before calling Pikafish, the app checks piece counts, king/advisor/elephant
 locations, pawn locations, and whether the kings face each other. These checks
@@ -129,7 +141,14 @@ and debug images before restarting so the cause can be investigated.
 
 For API clients, `/api/xiangqi/game_snapshot` returns the detected `board`,
 the last validated `accepted_board`, `player`, `next_player`, `moves`,
-`best_move`, `waiting_for_computer_move`, `warning`, and `winner`. Moves and
+`best_move`, `waiting_for_computer_move`, `warning`, `warning_id`, and `winner`.
+New games accept `time_control` values `"5"`, `"5+5"`, `"10"` or `"10+5"`;
+the snapshot adds `clock` (remaining seconds by color, active color and
+increment), `finish_reason` and `busy`. An omitted `time_control` keeps
+older clients untimed.
+Clients acknowledge a warning with `POST /api/xiangqi/dismiss_warning` and
+JSON `{"warning_id": "..."}`. A stale ID cannot dismiss a newer warning.
+Moves and
 boards are in the camera/display orientation. The engine-only rotation is
 not applied to these API values.
 

@@ -9,7 +9,7 @@ import cv2
 import imutils
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -70,6 +70,30 @@ def chessai_process_loop():
             frame = global_data.original_frame
         if frame is not None:
             chessai_process(frame)
+
+
+def game_clock_loop():
+    while True:
+        with global_data.game_lock:
+            if global_data.game_state is not None:
+                global_data.game_state.tick_clock()
+        time.sleep(0.1)
+
+
+def game_observer_loop():
+    from chessai.routers.xiangqi import game_snapshot
+
+    while True:
+        with global_data.board_lock:
+            has_board = global_data.board_array is not None
+        with global_data.game_lock:
+            has_game = global_data.game_state is not None
+        if has_board and has_game:
+            try:
+                game_snapshot()
+            except HTTPException as exc:
+                logging.warning("Game observation failed (%s): %s", exc.status_code, exc.detail)
+        time.sleep(0.5)
 
 
 def main():
@@ -163,6 +187,8 @@ def main():
 
     # Start the web server first so the UI is reachable even without a camera
     threading.Thread(target=run_webapp, daemon=True).start()
+    threading.Thread(target=game_clock_loop, daemon=True).start()
+    threading.Thread(target=game_observer_loop, daemon=True).start()
 
     # Scan for available camera ports
     logging.info("Scanning for available camera ports...")

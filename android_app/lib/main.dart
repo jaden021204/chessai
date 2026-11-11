@@ -51,7 +51,8 @@ class PiApi {
   Uri uri(String path) => base.replace(path: path, query: null, fragment: null);
 
   Future<Uint8List> _request(String path,
-      {Map<String, String>? body, Duration timeout = const Duration(seconds: 10)}) async {
+      {Map<String, String>? body, String? token,
+      Duration timeout = const Duration(seconds: 10)}) async {
     try {
       final request = body == null
           ? await _client.getUrl(uri(path)).timeout(timeout)
@@ -60,6 +61,7 @@ class PiApi {
         request.headers.contentType = ContentType.json;
         request.write(jsonEncode(body));
       }
+      if (token != null) request.headers.set('Authorization', 'Bearer $token');
       final response = await request.close().timeout(timeout);
       final bytes = await response.fold<BytesBuilder>(
         BytesBuilder(),
@@ -89,9 +91,10 @@ class PiApi {
   }
 
   Future<Map<String, dynamic>> json(String path,
-      {Map<String, String>? body, bool longRunning = false}) async {
+      {Map<String, String>? body, String? token, bool longRunning = false}) async {
     final bytes = await _request(path,
         body: body,
+        token: token,
         timeout: Duration(seconds: longRunning ? 180 : 15));
     try {
       final value = jsonDecode(utf8.decode(bytes));
@@ -124,6 +127,7 @@ class _HomeState extends State<Home> {
   String player = 'r';
   String position = 'current';
   String difficulty = 'medium';
+  String timeControl = '5';
   Map<String, dynamic> game = {'is_playing': false};
   Map<String, Uint8List> images = {};
   String? connectionError;
@@ -131,10 +135,10 @@ class _HomeState extends State<Home> {
   bool loadingImages = false;
   bool actionRunning = false;
   bool dialogOpen = false;
-  DateTime warningAfter = DateTime.fromMillisecondsSinceEpoch(0);
   String? announcedWinner;
   int connectionVersion = 0;
   int actionVersion = 0;
+  String? controllerToken;
   Timer? timer;
 
   @override
@@ -157,7 +161,7 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> refreshGame() async {
-    if (!polling && !actionRunning) {
+    if (!polling) {
       polling = true;
       final version = connectionVersion;
       final currentAction = actionVersion;
@@ -165,7 +169,7 @@ class _HomeState extends State<Home> {
         final data = await api.json('/api/xiangqi/game_snapshot',
             longRunning: true);
         if (mounted && version == connectionVersion &&
-            currentAction == actionVersion && !actionRunning) {
+            currentAction == actionVersion) {
           setState(() {
             game = data;
             connectionError = null;
@@ -235,16 +239,21 @@ class _HomeState extends State<Home> {
     final winner = game['winner'];
     if (winner is String && winner != announcedWinner) {
       announcedWinner = winner;
-      await showMessage('Game over',
-          winner == game['player'] ? 'You win.' : 'COM wins.');
+      final result = winner == game['player'] ? 'You win.' : 'COM wins.';
+      await showMessage('Game over', game['finish_reason'] == 'timeout'
+          ? '$result ${winner == game['player'] ? 'COM' : 'You'} ran out of time.'
+          : result);
       return;
     }
-    final warning = game['warning'];
-    if (warning is String && DateTime.now().isAfter(warningAfter)) {
-      await showMessage('Please check the board', warning);
-      warningAfter = DateTime.now().add(const Duration(seconds: 5));
-    }
   }
+
+  Future<void> dismissWarning() => runAction(() async {
+        final id = game['warning_id'];
+        if (id is! String) throw ApiException('Warning has no identifier.');
+        final result = await api.json('/api/xiangqi/dismiss_warning',
+            body: {'warning_id': id});
+        if (mounted) setState(() => game = result);
+      });
 
   Future<void> runAction(Future<void> Function() action) async {
     if (actionRunning) return;
@@ -266,6 +275,7 @@ class _HomeState extends State<Home> {
               'next_player': player,
               'position': position,
               'difficulty': difficulty,
+              'time_control': timeControl,
               'mode': 'analyzer',
             },
             longRunning: true);
@@ -273,7 +283,7 @@ class _HomeState extends State<Home> {
         setState(() {
           game = result;
           announcedWinner = null;
-          warningAfter = DateTime.fromMillisecondsSinceEpoch(0);
+          controllerToken = null;
           screen = Screen.board;
           images = {};
         });
@@ -345,6 +355,83 @@ class _HomeState extends State<Home> {
     refresh();
   }
 
+  Future<void> controlProgram() async {
+    if (controllerToken == null) {
+      final controller = TextEditingController();
+      final token = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Controller token'),
+          content: TextField(
+            controller: controller,
+            obscureText: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: const InputDecoration(labelText: 'Token from the Pi'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()),
+                child: const Text('Continue')),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (token == null || !mounted) return;
+      if (token.isEmpty) {
+        await showMessage('Token required', 'Enter the controller token from the Pi.');
+        return;
+      }
+      controllerToken = token;
+    }
+    if (!mounted) return;
+    final command = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ChessAI program'),
+        content: const Text('Stopping ChessAI ends the current game. The Pi stays powered on.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, 'status'), child: const Text('Status')),
+          TextButton(onPressed: () => Navigator.pop(context, 'start'), child: const Text('Start')),
+          TextButton(onPressed: () => Navigator.pop(context, 'stop'), child: const Text('Stop')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ],
+      ),
+    );
+    if (command == null || !mounted) return;
+    if (command == 'stop') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Stop ChessAI?'),
+          content: const Text('The current game and its move history will be lost.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Stop')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    await runAction(() async {
+      final remote = PiApi(api.base.replace(port: 5679));
+      try {
+        final result = await remote.json('/$command',
+            token: controllerToken, body: command == 'status' ? null : {},
+            longRunning: true);
+        if (mounted) {
+          await showMessage('ChessAI program',
+              result['running'] == true ? 'The program is running.' : 'The program is stopped.');
+        }
+      } on ApiException {
+        controllerToken = null;
+        rethrow;
+      } finally {
+        remote.close();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final yourTurn = game['is_playing'] == true &&
@@ -356,6 +443,19 @@ class _HomeState extends State<Home> {
           SafeArea(
             child: Column(
               children: [
+                if (game['warning'] is String)
+                  Material(
+                    color: cream,
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Row(children: [
+                        Expanded(child: Text(game['warning'] as String,
+                            style: const TextStyle(color: Colors.black))),
+                        TextButton(onPressed: actionRunning ? null : dismissWarning,
+                            child: const Text('Dismiss')),
+                      ]),
+                    ),
+                  ),
                 if (connectionError != null)
                   Material(
                     color: Colors.black87,
@@ -405,6 +505,9 @@ class _HomeState extends State<Home> {
             ActionButton(label: 'Play', onPressed: () => navigate(Screen.setup)),
             const SizedBox(height: 12),
             ActionButton(label: 'Debug View', onPressed: () => navigate(Screen.debug)),
+            const SizedBox(height: 12),
+            ActionButton(label: 'Start / Stop ChessAI',
+                onPressed: actionRunning ? null : controlProgram),
           ],
         ),
       );
@@ -442,6 +545,12 @@ class _HomeState extends State<Home> {
                 choice('Hard', difficulty == 'hard', () => setState(() => difficulty = 'hard')),
                 choice('Master', difficulty == 'expert', () => setState(() => difficulty = 'expert')),
               ])),
+              Expanded(child: optionGroup('Timer', [
+                choice('5 min', timeControl == '5', () => setState(() => timeControl = '5')),
+                choice('5 + 5', timeControl == '5+5', () => setState(() => timeControl = '5+5')),
+                choice('10 min', timeControl == '10', () => setState(() => timeControl = '10')),
+                choice('10 + 5', timeControl == '10+5', () => setState(() => timeControl = '10+5')),
+              ])),
               SizedBox(
                 height: math.max(45.0, unit * 1.3),
                 child: ActionButton(label: actionRunning ? 'Starting...' : 'Start',
@@ -453,16 +562,18 @@ class _HomeState extends State<Home> {
         );
       });
 
-  Widget optionGroup(String title, List<Widget> choices) => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FittedBox(child: Text(title, style: const TextStyle(
-              color: red, fontWeight: FontWeight.bold, fontSize: 21))),
-          const SizedBox(height: 4),
-          SizedBox(height: 44, child: Row(
-              children: choices.map((widget) => Expanded(child: widget)).toList())),
-        ],
-      );
+  Widget optionGroup(String title, List<Widget> choices) =>
+      LayoutBuilder(builder: (context, constraints) {
+        final buttonHeight = math.min(44.0, constraints.maxHeight * .6);
+        return Column(
+          children: [
+            Expanded(child: Center(child: FittedBox(child: Text(title,
+                style: const TextStyle(color: red, fontWeight: FontWeight.bold, fontSize: 21))))),
+            SizedBox(height: buttonHeight, child: Row(
+                children: choices.map((widget) => Expanded(child: widget)).toList())),
+          ],
+        );
+      });
 
   Widget choice(String label, bool selected, VoidCallback? onPressed) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -481,6 +592,15 @@ class _HomeState extends State<Home> {
         ),
       );
 
+  String clockFor(String? side) {
+    final clock = game['clock'];
+    if (clock is! Map || clock['remaining'] is! Map) return '--:--';
+    final seconds = (clock['remaining'] as Map)[side];
+    if (seconds is! num) return '--:--';
+    final total = math.max(0, seconds.ceil());
+    return '${total ~/ 60}:${(total % 60).toString().padLeft(2, '0')}';
+  }
+
   Widget boardPage(bool yourTurn) => LayoutBuilder(builder: (context, constraints) {
         final boardWidth = math.min(constraints.maxWidth, constraints.maxHeight * .54);
         final square = boardWidth / 8;
@@ -489,9 +609,12 @@ class _HomeState extends State<Home> {
             SizedBox(
               height: 52,
               child: Stack(alignment: Alignment.center, children: [
-                Text(game['winner'] != null ? 'GAME OVER' :
-                    'YOU ${yourTurn ? "●" : ""} | COM ${!yourTurn ? "●" : ""}',
-                    style: const TextStyle(color: red, fontWeight: FontWeight.bold, fontSize: 22)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: FittedBox(child: Text(game['winner'] != null ? 'GAME OVER' :
+                    'YOU ${clockFor(game['player'] as String?)} ${yourTurn ? "●" : ""} | COM ${clockFor(game['player'] == 'r' ? 'b' : 'r')} ${!yourTurn ? "●" : ""}',
+                    style: const TextStyle(color: red, fontWeight: FontWeight.bold, fontSize: 22))),
+                ),
                 Align(alignment: Alignment.centerRight, child: boardMenu()),
               ]),
             ),
@@ -503,7 +626,7 @@ class _HomeState extends State<Home> {
               width: square * 6,
               height: square * 2,
               child: ActionButton(label: actionRunning ? 'Analyzing...' : 'END TURN',
-                  onPressed: yourTurn && !actionRunning ? endTurn : null),
+                  onPressed: yourTurn && !actionRunning && game['busy'] != true ? endTurn : null),
             ),
             const Spacer(flex: 2),
             SizedBox(
