@@ -42,6 +42,24 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+Uri? parsePiAddress(String input) {
+  final value = input.trim();
+  if (value.isEmpty || RegExp(r'\s').hasMatch(value)) return null;
+  final text = value.contains('://') ? value : 'http://$value';
+  final address = Uri.tryParse(text);
+  if (address == null || address.scheme != 'http' || address.host.isEmpty ||
+      address.userInfo.isNotEmpty || (address.path.isNotEmpty && address.path != '/') ||
+      address.hasQuery || address.hasFragment) {
+    return null;
+  }
+  try {
+    if (address.hasPort && (address.port < 1 || address.port > 65535)) return null;
+    return address.hasPort ? address : address.replace(port: 5678);
+  } on FormatException {
+    return null;
+  }
+}
+
 class PiApi {
   PiApi(this.base);
   final Uri base;
@@ -57,11 +75,11 @@ class PiApi {
       final request = body == null
           ? await _client.getUrl(uri(path)).timeout(timeout)
           : await _client.postUrl(uri(path)).timeout(timeout);
+      if (token != null) request.headers.set('Authorization', 'Bearer $token');
       if (body != null) {
         request.headers.contentType = ContentType.json;
         request.write(jsonEncode(body));
       }
-      if (token != null) request.headers.set('Authorization', 'Bearer $token');
       final response = await request.close().timeout(timeout);
       final bytes = await response.fold<BytesBuilder>(
         BytesBuilder(),
@@ -283,7 +301,6 @@ class _HomeState extends State<Home> {
         setState(() {
           game = result;
           announcedWinner = null;
-          controllerToken = null;
           screen = Screen.board;
           images = {};
         });
@@ -315,7 +332,9 @@ class _HomeState extends State<Home> {
           keyboardType: TextInputType.url,
           decoration: const InputDecoration(
             labelText: 'Address',
-            hintText: 'http://192.168.1.10:5678',
+            hintText: '192.168.1.10 or http://192.168.1.10:5678',
+            helperText: 'The address can be saved while ChessAI is stopped.',
+            helperMaxLines: 2,
           ),
         ),
         actions: [
@@ -327,11 +346,9 @@ class _HomeState extends State<Home> {
     );
     controller.dispose();
     if (input == null || !mounted) return;
-    final address = Uri.tryParse(input);
-    if (address == null || address.scheme != 'http' || address.host.isEmpty ||
-        address.userInfo.isNotEmpty || (address.path.isNotEmpty && address.path != '/') ||
-        address.hasQuery || address.hasFragment) {
-      await showMessage('Invalid address', 'Enter an address such as http://192.168.1.10:5678.');
+    final address = parsePiAddress(input);
+    if (address == null) {
+      await showMessage('Invalid address', 'Enter an address such as 192.168.1.10 or http://192.168.1.10:5678.');
       return;
     }
     connectionVersion++;
@@ -342,6 +359,7 @@ class _HomeState extends State<Home> {
       images = {};
       connectionError = null;
       announcedWinner = null;
+      controllerToken = null;
       screen = Screen.main;
     });
     refresh();
@@ -461,7 +479,13 @@ class _HomeState extends State<Home> {
                     color: Colors.black87,
                     child: Padding(
                       padding: const EdgeInsets.all(6),
-                      child: Text(connectionError!, style: const TextStyle(color: Colors.white)),
+                      child: Text(
+                        screen == Screen.main
+                            ? 'ChessAI is not reachable: $connectionError\n'
+                                'If it is stopped, use Start / Stop ChessAI.'
+                            : connectionError!,
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                 Expanded(

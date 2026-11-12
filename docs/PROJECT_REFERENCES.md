@@ -4,6 +4,8 @@ These are references for technologies visible in this repository and its
 current implementation. They are useful citations, but this list is **not**
 a verified record of every website consulted during development. Check your
 institution's citation format and record access dates where required.
+Update this file when future changes introduce a relevant new source or
+technology, identifying whether it is directly used or background reading.
 
 ## Core project and hardware
 
@@ -60,6 +62,35 @@ institution's citation format and record access dates where required.
     uses Flutter for its interface and communicates with the Pi over the
     local network. Its source was added separately from the existing web UI;
     verify its actual build and device-test results before claiming success.
+
+## Timers and remote control
+
+12. **Python `time.monotonic` documentation** —
+    https://docs.python.org/3/library/time.html#time.monotonic. This explains
+    a clock that is not affected by wall-clock adjustments. The Pi's
+    `chessai/game/clock.py` uses it to measure elapsed time for both sides;
+    `chessai/routers/xiangqi.py` shares clock state with the clients.
+13. **systemd user services and `systemctl`** —
+    https://www.freedesktop.org/software/systemd/man/latest/systemctl.html
+    and https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html.
+    systemd manages services on Linux. The optional controller uses
+    `systemctl --user` in `chessai/remote_control.py` to start and stop only
+    the configured ChessAI service; it cannot switch on a powered-off Pi.
+    The installation examples are in `android_app/README.md`.
+14. **Python `http.server`, `subprocess`, and `hmac` documentation** —
+    https://docs.python.org/3/library/http.server.html,
+    https://docs.python.org/3/library/subprocess.html, and
+    https://docs.python.org/3/library/hmac.html. The controller uses these
+    standard-library modules for its HTTP endpoints, systemd command calls,
+    and token comparison. Python explicitly warns that `http.server` is not
+    recommended for production. The controller's HTTP is unencrypted and the
+    main game API is unauthenticated, so the current design is for a trusted
+    local network only, not public internet deployment.
+15. **Dart `HttpClientRequest`** —
+    https://api.dart.dev/dart-io/HttpClientRequest-class.html. The Android
+    client's `PiApi` in `android_app/lib/main.dart` sends game and controller
+    requests. The client sets the authorization and content-type headers before
+    writing a POST body, so the controller can receive the token.
 
 ## Earlier components and unknowns
 

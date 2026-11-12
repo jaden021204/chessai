@@ -126,8 +126,10 @@ Use an appropriately signed build before distributing it.
 
 ## 5. Connect and test
 
-1. On the main screen tap the gear icon. Enter `http://<pi-ip>:5678`,
-   replacing `<pi-ip>` with the address from step 1. The address lasts until
+1. On the main screen tap the gear icon. Enter the Pi IP address from step 1,
+   for example `192.168.1.10`, or enter `http://192.168.1.10:5678`. The app
+   accepts the address even while ChessAI is stopped; it uses port 5678 by
+   default and port 5679 for the optional controller. The address lasts until
    the app is closed; enter it again next time. `raspberrypi.local` is only a
    default and may not resolve on every phone.
 2. Tap **Debug View** and check the camera, aligned board/detections, and
@@ -233,10 +235,13 @@ systemd does not expand `~` in these fields.
    the controller starts it on request.
 
 5. Rebuild and install the updated Android app. Set the Pi address using the
-   gear icon, then tap **Start / Stop ChessAI** and enter the token. Choose
-   **Start**, **Status**, or **Stop**. Stop asks for confirmation because the
-   game is not saved. The token remains only in app memory; enter it again
-   after restarting the app or changing the Pi address.
+   gear icon. If ChessAI is stopped, the connection warning on the main screen
+   is expected; it does not prevent using the controller. Tap **Start / Stop
+   ChessAI**, enter the token and choose **Start**. After startup, the warning
+   should clear when the game server is reachable. You can also choose
+   **Status** or **Stop**. Stop asks for confirmation because the game is not
+   saved. The token remains only in app memory; enter it again after restarting
+   the app or changing the Pi address.
 
 To troubleshoot, on the Pi run `systemctl --user status chessai.service
 --no-pager` and `journalctl --user -u chessai.service -n 50 --no-pager`.
