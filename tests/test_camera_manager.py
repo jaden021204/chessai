@@ -26,6 +26,22 @@ class CameraTests(unittest.TestCase):
         self.assertFalse(global_data.camera_is_running)
         camera.release.assert_called_once()
 
+    def test_stop_waits_without_spinning(self):
+        global_data.camera_is_running = True
+        global_data.camera_shutdown_signal = False
+
+        def finish_capture(_):
+            self.assertTrue(global_data.camera_shutdown_signal)
+            global_data.camera_is_running = False
+
+        try:
+            with patch.object(camera_manager.time, "sleep", side_effect=finish_capture) as sleep:
+                camera_manager.stop_camera()
+            sleep.assert_called_once_with(0.01)
+        finally:
+            global_data.camera_is_running = False
+            global_data.camera_shutdown_signal = False
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -91,6 +91,11 @@ technology, identifying whether it is directly used or background reading.
     client's `PiApi` in `android_app/lib/main.dart` sends game and controller
     requests. The client sets the authorization and content-type headers before
     writing a POST body, so the controller can receive the token.
+16. **Python `time.sleep`** —
+    https://docs.python.org/3/library/time.html#time.sleep. The camera and
+    processing loops in `chessai/camera_manager.py` and `chessai/app.py`
+    briefly sleep when waiting for shutdown or a first frame, avoiding
+    continuous CPU polling in those specific conditions.
 
 ## Earlier components and unknowns
 

@@ -70,6 +70,8 @@ def chessai_process_loop():
             frame = global_data.original_frame
         if frame is not None:
             chessai_process(frame)
+        else:
+            time.sleep(0.05)
 
 
 def game_clock_loop():

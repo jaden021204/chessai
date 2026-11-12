@@ -60,6 +60,11 @@ your device). In `chessai/config.py`, change `CAMERA_WIDTH` and
 can slow the Pi, and the detector still resizes the aligned board to the
 model's required 640x640 input.
 
+When waiting for the first camera frame or for camera shutdown, the app
+briefly sleeps rather than continuously polling. This does not change model
+input, detection thresholds, or the ARUCO alignment. The performance impact
+on a particular Pi has not been measured.
+
 If classifications remain unreliable, try increasing
 `PIECE_DETECTION_CONFIDENCE` in `chessai/config.py` from 0.35 to 0.45, then
 restart the app. A higher threshold hides more low-confidence detections; it

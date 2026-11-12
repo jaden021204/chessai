@@ -48,7 +48,7 @@ def stop_camera():
         return False
     global_data.camera_shutdown_signal = True
     while global_data.camera_is_running:
-        pass
+        time.sleep(0.01)
 
 
 def start_camera():

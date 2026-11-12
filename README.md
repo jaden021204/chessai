@@ -15,49 +15,22 @@ ChessAI is a groundbreaking tool that brings together computer vision, chess alg
 - [x] Move suggestion.
 - [ ] Deep learning model for chess board detection (No need to use ARUCO markers).
 
-## Environment setup
+## Raspberry Pi and Android setup
 
-- Requirements: Python 3.9, [Conda](https://docs.conda.io/en/latest/miniconda.html), Node.js 18+.
-- Clone this repository.
+For the current Raspberry Pi 5 installation and usage instructions, see
+[docs/RASPBERRY_PI_SETUP.md](docs/RASPBERRY_PI_SETUP.md). The Android preview
+and its optional remote controller are documented in
+[android_app/README.md](android_app/README.md).
 
-```bash
-git clone https://github.com/vietanhdev/chessai --recursive
-```
-
-- Create a new conda environment and the required packages.
-
-```bash
-conda create -n chessai python=3.9
-conda activate chessai
-pip install -e .
-```
-
-- Install Node.js packages and build the frontend.
-
-```bash
-cd chessai/frontend
-npm install
-cd ..
-bash build_frontend.sh
-```
-
-## Build chess engine
-
-- This project uses [godogpaw](https://github.com/hmgle/godogpaw) as the chess engine.
-- Install [Go](https://go.dev/doc/install).
-- Build the engine.
-
-```bash
-cd godogpaw
-go build
-```
-
-- Copy the executable file (`godogpaw*`) to the [./data/engines](./data/engines) folder.
+The running application uses the supplied Ultralytics YOLO26s model exported
+to NCNN and the [Pikafish](https://github.com/official-pikafish/Pikafish)
+Xiangqi engine. Install Pikafish separately and use the path to your actual
+binary. Keep the ARUCO markers visible to align the physical board.
 
 ## Run the app
 
 ```bash
-ENGINE_PATH="data/engines/godogpaw-macos-arm" python -m chessai.app --run_app
+ENGINE_PATH="/full/path/to/pikafish" python -m chessai.app --run_app
 ```
 
 Replace `ENGINE_PATH` with the path to the chess engine executable file.
@@ -76,8 +49,11 @@ This project uses computer vision and deep learning to detect chess pieces and c
 ## References
 
 - This project was initially built for [Hackster's OpenCV AI Competition 2023](https://www.hackster.io/contests/opencv-ai-competition-2023). Hackster Project: [ChessAI - Chinese Chess Game Analyzer](https://www.hackster.io/vietanhdev/chessai-chinese-chess-game-analyzer-4be768).
-- Object detection model (for chess pieces) is based on [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX) - License: Apache 2.0.
-- Chess engine: [godogpaw](https://github.com/hmgle/godogpaw) - License: MIT.
+- Current piece detector: [Ultralytics YOLO26s](https://docs.ultralytics.com/models/yolo26/), exported to [ncnn](https://github.com/Tencent/ncnn). Check the supplied model metadata for its license.
+- Current chess engine: [Pikafish](https://github.com/official-pikafish/Pikafish).
 - UI components: [shadcn-ui](https://github.com/shadcn-ui/ui) - License: MIT.
+- The original project also used YOLOX and godogpaw. Legacy code and references
+  retain those names where they describe those original components; they are
+  not the active detector or engine. See [docs/PROJECT_REFERENCES.md](docs/PROJECT_REFERENCES.md).
 # YOLO26s-RaspPI5-XiangQi
 # YOLO26s-RaspPI5-XiangQi
