@@ -5,6 +5,7 @@ from pathlib import Path
 
 import ncnn
 import numpy as np
+from chessai.profiling import span
 
 
 class NCNNRuntime:
@@ -47,23 +48,27 @@ class NCNNRuntime:
 
         self._net = net
 
-    def infer(self, image: np.ndarray) -> list:
+    def infer(self, image: np.ndarray, profile=None) -> list:
         """Run inference and return raw NCNN outputs."""
         if self._net is None:
             raise RuntimeError("The NCNN model has not been loaded.")
         if image.dtype != np.float32 or image.ndim != 3:
             raise ValueError("NCNN input must be a 3D float32 CHW array.")
 
-        input_mat = ncnn.Mat(np.ascontiguousarray(image))
-        extractor = self._net.create_extractor()
-        result = extractor.input("in0", input_mat)
+        with span(profile, "ncnn_input_ms"):
+            input_mat = ncnn.Mat(np.ascontiguousarray(image))
+            extractor = self._net.create_extractor()
+            result = extractor.input("in0", input_mat)
         if result != 0:
             raise RuntimeError(f"NCNN could not set model input (code {result}).")
 
-        result, output = extractor.extract("out0")
+        with span(profile, "ncnn_extract_ms"):
+            result, output = extractor.extract("out0")
         if result != 0:
             raise RuntimeError(f"NCNN could not extract model output (code {result}).")
-        return [np.asarray(output).copy()]
+        with span(profile, "ncnn_output_copy_ms"):
+            result = [np.asarray(output).copy()]
+        return result
 
     def close(self) -> None:
         """Release the net."""

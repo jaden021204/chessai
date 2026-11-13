@@ -10,6 +10,7 @@ camera_is_running = False
 camera_shutdown_signal = False
 frame_lock = Lock()
 original_frame = None
+capture_profile = None
 debug_frame = None
 debug_aligned_frame = None
 debug_markers_frame = None
@@ -17,6 +18,7 @@ visualization_frame = None
 
 board_lock = Lock()
 board_array = None
+board_capture_profile = None
 
 game_lock = Lock()
 game_state = None

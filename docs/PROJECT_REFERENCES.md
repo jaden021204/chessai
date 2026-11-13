@@ -97,6 +97,29 @@ technology, identifying whether it is directly used or background reading.
     briefly sleep when waiting for shutdown or a first frame, avoiding
     continuous CPU polling in those specific conditions.
 
+## Performance measurement
+
+17. **Python `time.perf_counter_ns`** —
+    https://docs.python.org/3/library/time.html#time.perf_counter_ns.
+    `chessai/profiling.py` and the optional recovery probe use a monotonic,
+    high-resolution clock to measure elapsed wall time. This does not isolate
+    CPU instructions, physical exposure, or the time a screen displays a frame.
+18. **psutil documentation** — https://psutil.readthedocs.io/en/latest/.
+    `chessai/profiling.py` samples system CPU, memory, swap and process-tree
+    resident memory while profiling. These are sampled system statistics, not
+    a guarantee that a peak did not occur between samples.
+19. **Raspberry Pi `vcgencmd` documentation** —
+    https://www.raspberrypi.com/documentation/computers/os.html#vcgencmd.
+    The profiler uses `measure_temp`, `measure_clock arm` and `get_throttled`
+    to record temperature, frequency and throttling flags. Missing or historical
+    values require careful interpretation; see `docs/PI_PROFILING.md`.
+20. **Python `csv` and `statistics` documentation** —
+    https://docs.python.org/3/library/csv.html and
+    https://docs.python.org/3/library/statistics.html. The profiler writes
+    raw measurements as CSV, and `tools/profile_report.py` summarizes them
+    without requiring a plotting package. It does not assert which module is
+    the bottleneck.
+
 ## Earlier components and unknowns
 
 - The original ChessAI README credits **YOLOX**

@@ -1,9 +1,9 @@
 import io
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, HTTPException, Response
 from starlette.responses import StreamingResponse
 
-from chessai import global_data
+from chessai import global_data, profiling
 from chessai.utils import encode_image, original_frame_stream
 from chessai.config import DEFAULT_VISUALIZATION_FRAME
 
@@ -12,6 +12,19 @@ router = APIRouter(
     prefix="/api/vision",
     tags=["Vision APIs"],
 )
+
+@router.get("/profile_board")
+def profile_board():
+    if profiling.profiler is None:
+        raise HTTPException(status_code=404, detail="Profiling is not enabled.")
+    with global_data.board_lock:
+        if global_data.board_array is None or global_data.board_capture_profile is None:
+            raise HTTPException(status_code=409, detail="No profiled board is available yet.")
+        return {
+            "board": global_data.board_array.tolist(),
+            "capture_id": global_data.board_capture_profile["capture_id"],
+            "capture_start_ns": global_data.board_capture_profile["capture_start_ns"],
+        }
 
 
 @router.get("/original_frame", response_class=Response)

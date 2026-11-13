@@ -9,6 +9,7 @@ from chessai.config import (
     PIECE_DETECTION_MODEL_PATH,
 )
 from chessai.dnn.yolo26s_ncnn import YOLO26sNCNNDetector
+from chessai.profiling import span
 
 
 class PieceDetector:
@@ -54,31 +55,34 @@ class PieceDetector:
         y2 = min(box1[3], box2[3])
         return max(0, x2 - x1) * max(0, y2 - y1)
 
-    def detect(self, image, visualize=None):
-        boxes, scores, cls_inds = self.model.detect(image, visualize)
+    def detect(self, image, visualize=None, profile=None):
+        boxes, scores, cls_inds = self.model.detect(image, visualize, profile=profile)
 
-        board = ["" for _ in CELL_RECTANGLES]
-        for cell_index, rect in enumerate(CELL_RECTANGLES):
-            cell_area = (rect[2] - rect[0]) * (rect[3] - rect[1])
-            candidates = [
-                detection_index
-                for detection_index, box in enumerate(boxes)
-                if self.intersection_area(rect, box) > 0.3 * cell_area
-            ]
-            if candidates:
-                best_index = max(candidates, key=lambda i: scores[i])
-                class_id = int(cls_inds[best_index])
-                label = self.class_names[class_id]
-                board[cell_index] = self.label_to_board_piece[label]
+        with span(profile, "grid_snap_ms"):
+            board = ["" for _ in CELL_RECTANGLES]
+            for cell_index, rect in enumerate(CELL_RECTANGLES):
+                cell_area = (rect[2] - rect[0]) * (rect[3] - rect[1])
+                candidates = [
+                    detection_index
+                    for detection_index, box in enumerate(boxes)
+                    if self.intersection_area(rect, box) > 0.3 * cell_area
+                ]
+                if candidates:
+                    best_index = max(candidates, key=lambda i: scores[i])
+                    class_id = int(cls_inds[best_index])
+                    label = self.class_names[class_id]
+                    board[cell_index] = self.label_to_board_piece[label]
+            board = np.asarray(board, dtype=object).reshape(10, 9)
 
-        if visualize is not None:
-            for rect in CELL_RECTANGLES:
-                cv2.rectangle(
-                    visualize,
-                    (rect[0], rect[1]),
-                    (rect[2], rect[3]),
-                    (0, 255, 0),
-                    2,
-                )
+        with span(profile, "grid_overlay_ms"):
+            if visualize is not None:
+                for rect in CELL_RECTANGLES:
+                    cv2.rectangle(
+                        visualize,
+                        (rect[0], rect[1]),
+                        (rect[2], rect[3]),
+                        (0, 255, 0),
+                        2,
+                    )
 
-        return np.asarray(board, dtype=object).reshape(10, 9)
+        return board

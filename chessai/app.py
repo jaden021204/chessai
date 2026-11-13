@@ -1,4 +1,5 @@
 import os
+import atexit
 import argparse
 import logging
 import pathlib
@@ -15,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from chessai.app_info import __appname__, __description__, __version__
 from chessai import global_data
-from chessai import config
+from chessai import config, profiling
 from chessai.vision.board_aligner import BoardAligner
 from chessai.vision.piece_detector import PieceDetector
 from chessai.game.chess_engine import ChessEngine
@@ -37,19 +38,22 @@ piece_detector = PieceDetector(
 engine_path = os.environ.get("ENGINE_PATH", "")
 global_data.chess_engine = ChessEngine(engine_path)
 
-def chessai_process(frame):
+def chessai_process(frame, profile=None, capture=None):
     original_frame_viz = frame.copy()
-    _, board_image = aligner.process(frame, visualize=original_frame_viz)
+    with profiling.span(profile, "align_ms"):
+        _, board_image = aligner.process(frame, visualize=original_frame_viz, profile=profile)
     board_image_viz = board_image.copy()
-    board_array = piece_detector.detect(board_image, visualize=board_image_viz)
+    board_array = piece_detector.detect(board_image, visualize=board_image_viz, profile=profile)
     with global_data.board_lock:
         global_data.board_array = board_array
+        global_data.board_capture_profile = capture
 
     # Two images on the top
     target_height = 640
-    original_frame_viz = imutils.resize(original_frame_viz, height=target_height)
-    board_image_viz = imutils.resize(board_image_viz, height=target_height)
-    top_row = cv2.hconcat([board_image_viz, original_frame_viz])
+    with profiling.span(profile, "debug_render_ms"):
+        original_frame_viz = imutils.resize(original_frame_viz, height=target_height)
+        board_image_viz = imutils.resize(board_image_viz, height=target_height)
+        top_row = cv2.hconcat([board_image_viz, original_frame_viz])
     with global_data.frame_lock:
         global_data.debug_frame = top_row
         global_data.debug_aligned_frame = board_image_viz
@@ -59,8 +63,9 @@ def chessai_process(frame):
     game = global_data.game_state
     hint = game.hint_move if game else None
     rotate_pieces = bool(game and game.player == "r")
-    board_canvas = draw_board_canvas(board_array, hint, rotate_pieces)
-    board_canvas = imutils.resize(board_canvas, height=target_height)
+    with profiling.span(profile, "board_render_ms"):
+        board_canvas = draw_board_canvas(board_array, hint, rotate_pieces)
+        board_canvas = imutils.resize(board_canvas, height=target_height)
     with global_data.frame_lock:
         global_data.visualization_frame = board_canvas
 
@@ -68,8 +73,18 @@ def chessai_process_loop():
     while True:
         with global_data.frame_lock:
             frame = global_data.original_frame
+            capture = global_data.capture_profile
         if frame is not None:
-            chessai_process(frame)
+            sample = None
+            if profiling.profiler and capture:
+                with global_data.game_lock:
+                    game = global_data.game_state
+                    game_active = game is not None and game.winner is None
+                if game_active:
+                    sample = profiling.profiler.new_frame(capture.copy())
+            chessai_process(frame, profile=sample, capture=capture)
+            if sample:
+                sample.finish()
         else:
             time.sleep(0.05)
 
@@ -139,6 +154,21 @@ def main():
     if args.version:
         print(f"{__appname__} v{__version__}")
         return
+
+    profile_dir = os.environ.get("CHESSAI_PROFILE_DIR")
+    if profile_dir:
+        profiling.profiler = profiling.Profiler(
+            profile_dir,
+            frames=int(os.environ.get("CHESSAI_PROFILE_FRAMES", "1000")),
+            warmup=int(os.environ.get("CHESSAI_PROFILE_WARMUP", "20")),
+        )
+        with (profiling.profiler.directory / "metadata.txt").open("a", encoding="utf-8") as file:
+            file.write(f"model_dir={piece_detector.model.model_dir}\n"
+                       f"model_input={piece_detector.model.input_size}\n"
+                       f"ncnn_threads={piece_detector.model.num_threads}\n"
+                       f"ncnn_gpu_requested={piece_detector.model.use_gpu}\n"
+                       f"aruco_debug={aligner.debug}\n")
+        atexit.register(profiling.profiler.close)
 
     logging.info(f"Starting {__appname__}...")
     logging.info(f"Version: {__version__}")

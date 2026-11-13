@@ -1,5 +1,8 @@
 # Running ChessAI on a Raspberry Pi 5
 
+For optional gameplay latency, resource and recovery measurements, see
+[`PI_PROFILING.md`](PI_PROFILING.md).
+
 The NCNN detector, camera, and board visualization are working on the Pi setup.
 The Pikafish hint integration must be tested with your Pi binary.
 

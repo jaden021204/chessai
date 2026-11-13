@@ -9,6 +9,7 @@ from typing import Optional
 
 from chessai.game.engine_base import EngineBase
 from chessai.game.game_state import Player
+from chessai import profiling
 
 
 class EngineError(RuntimeError):
@@ -194,6 +195,7 @@ class PikafishEngine(EngineBase):
         self._write(f"position fen {fen}")
         return fen
 
+    @profiling.measure_engine("search")
     def get_best_move(
         self,
         board_array,
@@ -213,8 +215,10 @@ class PikafishEngine(EngineBase):
                 self._write(f"position fen {fen}")
                 self._write("isready")
                 self._wait_for("readyok", self.startup_timeout)
+                profiling.engine_command_start()
                 self._write(f"go depth {depth}")
                 result = self._wait_for("bestmove", self.search_timeout).split()
+                profiling.engine_command_end()
                 if len(result) < 2:
                     raise EngineError("Pikafish returned an incomplete bestmove.")
                 move = result[1]
@@ -229,6 +233,7 @@ class PikafishEngine(EngineBase):
     def get_move(self, game_state, *, depth: int = 4) -> Optional[str]:
         return self.get_best_move(game_state.board, game_state.next_player, depth=depth)
 
+    @profiling.measure_engine("perft1")
     def legal_moves(self, board_array, next_player: str):
         fen = self.board_array_to_fen(board_array, next_player)
         with self._lock:
@@ -237,6 +242,7 @@ class PikafishEngine(EngineBase):
                 self._write(f"position fen {fen}")
                 self._write("isready")
                 self._wait_for("readyok", self.startup_timeout)
+                profiling.engine_command_start()
                 self._write("go perft 1")
                 deadline = time.monotonic() + self.search_timeout
                 moves = set()
@@ -256,6 +262,7 @@ class PikafishEngine(EngineBase):
                     if match:
                         moves.add(match.group(1))
                     elif line.startswith("Nodes searched:"):
+                        profiling.engine_command_end()
                         try:
                             count = int(line.partition(":")[2].strip())
                         except ValueError as exc:

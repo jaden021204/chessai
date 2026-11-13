@@ -64,7 +64,7 @@ class BoardAligner:
     def get_output_size(self):
         return self.ref_image.shape[1], self.ref_image.shape[0]
 
-    def process(self, image, visualize=None):
+    def process(self, image, visualize=None, profile=None):
         """Transform image"""
 
         # Convert frame to gray scale
@@ -72,9 +72,13 @@ class BoardAligner:
 
         # Find new transform matrices
         if time.time() - self.last_M_update > 1 or self.M is None:
+            if profile:
+                profile.times["homography_attempted"] = 1
             is_aruco_detected = self._process_aruco(gray, update_transform_matrices=True)
             self.last_M_update = time.time()
         else:
+            if profile:
+                profile.times["homography_attempted"] = 0
             is_aruco_detected = self._process_aruco(gray, update_transform_matrices=False)
 
         # Draw detected markers in frame with their ids
@@ -84,6 +88,8 @@ class BoardAligner:
 
         # Convert image using new transform matrices
         if is_aruco_detected or self.M_inv is not None:
+            if profile:
+                profile.times["warp_applied"] = 1
             frame_warp = cv2.warpPerspective(
                 image, self.M_inv, (self.ref_image.shape[1], self.ref_image.shape[0])
             )
@@ -92,6 +98,8 @@ class BoardAligner:
 
             return True, frame_warp
         else:
+            if profile:
+                profile.times["warp_applied"] = 0
             return False, image
 
     def _process_aruco(self, gray, update_transform_matrices=True):

@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 
 from chessai.dnn.ncnn_runtime import NCNNRuntime
+from chessai.profiling import span
 
 
 class YOLO26sNCNNDetector:
@@ -165,6 +166,7 @@ class YOLO26sNCNNDetector:
         self,
         image: np.ndarray,
         visualize: Optional[np.ndarray] = None,
+        profile=None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns:
@@ -172,27 +174,30 @@ class YOLO26sNCNNDetector:
             scores: np.ndarray, shape (N,)
             cls_inds: np.ndarray, shape (N,)
         """
-        input_tensor, scale, padding = self.preprocess(image)
-        raw_outputs = self.runtime.infer(input_tensor)
-        boxes, scores, class_ids = self.postprocess(
-            raw_outputs, image.shape, scale, padding
-        )
+        with span(profile, "preprocess_ms"):
+            input_tensor, scale, padding = self.preprocess(image)
+        raw_outputs = self.runtime.infer(input_tensor, profile=profile)
+        with span(profile, "postprocess_ms"):
+            boxes, scores, class_ids = self.postprocess(
+                raw_outputs, image.shape, scale, padding
+            )
 
-        if visualize is not None:
-            for box, score, class_id in zip(boxes, scores, class_ids):
-                x1, y1, x2, y2 = np.rint(box).astype(int)
-                cv2.rectangle(visualize, (x1, y1), (x2, y2), (0, 0, 255), 2)
-                label = f"{self.class_names[int(class_id)]} {score:.2f}"
-                cv2.putText(
-                    visualize,
-                    label,
-                    (x1, max(y1 - 5, 0)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    (0, 255, 0),
-                    1,
-                    cv2.LINE_AA,
-                )
+        with span(profile, "detection_overlay_ms"):
+            if visualize is not None:
+                for box, score, class_id in zip(boxes, scores, class_ids):
+                    x1, y1, x2, y2 = np.rint(box).astype(int)
+                    cv2.rectangle(visualize, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                    label = f"{self.class_names[int(class_id)]} {score:.2f}"
+                    cv2.putText(
+                        visualize,
+                        label,
+                        (x1, max(y1 - 5, 0)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (0, 255, 0),
+                        1,
+                        cv2.LINE_AA,
+                    )
 
         return boxes, scores, class_ids
 
