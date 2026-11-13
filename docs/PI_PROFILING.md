@@ -193,7 +193,8 @@ recorded canvas publication.
 - **CPU, memory and temperature:** `system_used_gib` is total RAM minus
   available RAM, not just ChessAI's memory; process-tree RSS can count shared
   memory more than once. The 14 GB comparison uses **14,000,000,000 bytes**,
-  about 13.04 GiB. Inspect swap use over time as well. Threshold messages
+  about 13.04 GiB. Inspect swap use over time as well; the report gives its
+  first-to-last sampled change when enough readings are available. Threshold messages
   describe only samples and cannot exclude short-lived peaks.
 - **Throttling:** `get_throttled` current bits 1–3 indicate frequency capping,
   throttling or a soft temperature limit. Bits 16–19 are historical since

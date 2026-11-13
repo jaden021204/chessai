@@ -69,6 +69,7 @@ def main():
         )
     throttle = [int(r["throttled_hex"], 16) for r in resources if r["throttled_hex"]]
     current_throttle = sum(bool(value & 0xE) for value in throttle)
+    swap = numbers(resources, "swap_used_gib")
     report = {
         "requested_frames": expected, "recorded_distinct_frames": len(frames),
         "complete": len(frames) == expected,
@@ -90,6 +91,9 @@ def main():
             "system_cpu_percent", "system_used_gib", "system_available_gib",
             "swap_used_gib", "process_tree_rss_gib", "temperature_c", "arm_clock_hz")},
         "resource_samples": len(resources),
+        "swap_used_change_gib": (swap[-1] - swap[0]
+                                 if len(resources) >= 2 and len(swap) == len(resources)
+                                 else None),
         "resource_window": "First recorded capture start through last recorded canvas publication.",
         "sampled_memory_14_decimal_gb": sampled_status(numbers(resources, "system_used_gib"), 14e9 / 2**30, resources),
         "sampled_temperature_80_c": sampled_status(numbers(resources, "temperature_c"), 80, resources),
